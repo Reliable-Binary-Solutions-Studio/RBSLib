@@ -1,4 +1,4 @@
-#include "Network.h"
+ï»¿#include "Network.h"
 #include <thread>
 #include <regex>
 #include <sstream>
@@ -9,7 +9,7 @@ namespace net = RbsLib::Network;
 
 static std::string read_word(const char* &buffer, int max_len);
 static std::string read_line(const char* &buffer, int max_len);
-static int move_ptr_to_next_printable(const char*& ptr, int max_len);//·µ»ØÖµÖ¸Ê¾·¢ÉúÒÆ¶¯µÄ¾àÀë£¬¸ºÊı±íÊ¾ºó·½ÎŞ¿ÉÒÆ¶¯µ½µÄ×Ö·û
+static int move_ptr_to_next_printable(const char*& ptr, int max_len);//è¿”å›å€¼æŒ‡ç¤ºå‘ç”Ÿç§»åŠ¨çš„è·ç¦»ï¼Œè´Ÿæ•°è¡¨ç¤ºåæ–¹æ— å¯ç§»åŠ¨åˆ°çš„å­—ç¬¦
 static bool is_empty_line(const std::string& str);
 
 void RbsLib::Network::init_network()
@@ -164,7 +164,7 @@ RbsLib::Network::TCP::TCPConnection::TCPConnection(SOCKET sock, const struct soc
 	this->mutex = new std::mutex;
 	this->sock = sock;
 	this->connection_info = connection_info;
-	this->info_len = info_len;
+	//this->info_len = info_len;
 	this->reference_counter = new int;
 	*this->reference_counter = 1;
 }
@@ -221,8 +221,8 @@ const RbsLib::Network::TCP::TCPConnection& RbsLib::Network::TCP::TCPConnection::
 	this->reference_counter = connection.reference_counter;
 	this->connection_info = connection.connection_info;
 	connection.reference_counter = nullptr;
-	connection.mutex = nullptr;
 	connection.mutex->unlock();
+	connection.mutex = nullptr;
 	return *this;
 }
 
@@ -258,7 +258,7 @@ RbsLib::Buffer RbsLib::Network::TCP::TCPConnection::Recv(int len, int flag) cons
 		throw net::NetworkException("Recv failed");
 	}
 	RbsLib::Buffer buffer(data, s);
-	delete data;
+	delete[] data;
 	return buffer;
 }
 
@@ -301,7 +301,7 @@ void RbsLib::Network::TCP::TCPConnection::Close(void)
 			*this->reference_counter -= 1;
 			if (*this->reference_counter <= 0)
 			{
-				/*ÒıÓÃ¼ÆÊıÆ÷Ğ¡ÓÚ0£¬ĞèÒª¹Ø±Õ²¢ÊÍ·Å*/
+				/*å¼•ç”¨è®¡æ•°å™¨å°äº0ï¼Œéœ€è¦å…³é—­å¹¶é‡Šæ”¾*/
 #ifdef WIN32
 				closesocket(this->sock);
 #endif // WIN32
@@ -315,7 +315,7 @@ void RbsLib::Network::TCP::TCPConnection::Close(void)
 			}
 			else
 			{
-				/*ÒıÓÃ¼ÆÊı´óÓÚ0*/
+				/*å¼•ç”¨è®¡æ•°å¤§äº0*/
 				this->reference_counter = nullptr;
 				this->mutex->unlock();
 				this->mutex = nullptr;
@@ -323,10 +323,10 @@ void RbsLib::Network::TCP::TCPConnection::Close(void)
 		}
 		else
 		{
-			this->mutex->unlock();//Î´ÆôÓÃÒıÓÃ¼ÆÊıÆ÷£¬Ö±½Ó½âËø
+			this->mutex->unlock();//æœªå¯ç”¨å¼•ç”¨è®¡æ•°å™¨ï¼Œç›´æ¥è§£é”
 		}
 	}
-	/*Èç¹ûMutexÎªnull£¬Ôò¸Ã¶ÔÏóÒ»¶¨·¢Éú¹ıÒÆ¶¯¹¹Ôì¡¢ÒÆ¶¯¿½±´»òÒÑ¾­ÊÍ·Å£¬ÎŞĞèÊÍ·ÅÈÎºÎ×ÊÔ´*/
+	/*å¦‚æœMutexä¸ºnullï¼Œåˆ™è¯¥å¯¹è±¡ä¸€å®šå‘ç”Ÿè¿‡ç§»åŠ¨æ„é€ ã€ç§»åŠ¨æ‹·è´æˆ–å·²ç»é‡Šæ”¾ï¼Œæ— éœ€é‡Šæ”¾ä»»ä½•èµ„æº*/
 }
 
 RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std::string ip, int port)
@@ -420,7 +420,7 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 {
 	if (use_thread_pool)
 	{
-		//´´½¨Ïß³Ì³Ø
+		//åˆ›å»ºçº¿ç¨‹æ± 
 		RbsLib::Thread::TaskPool pool(keep_threads_number);
 		while (true)
 		{
@@ -429,7 +429,7 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			auto& get = this->on_get_request;
 			auto& post = this->on_post_request;
 			pool.Run([connection, protocol_version, get, post]() {
-				//¶ÁÈ¡Header
+				//è¯»å–Header
 				try
 				{
 					RequestHeader header;
@@ -437,23 +437,23 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 					auto buffer = connection.Recv(1024 * 1024);
 					const char* now_ptr = (const char*)buffer.Data();
 					const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
-					//¶ÁÈ¡Ğ­ÒéĞĞ
-					std::string line = read_line(now_ptr, end_ptr - now_ptr);
+					//è¯»å–åè®®è¡Œ
+					std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
 					if (is_empty_line(line)) return;
 					p = line.c_str();
-					std::string method = read_word(p, line.length());
+					std::string method = read_word(p, (int)line.length());
 					if (method == "GET") header.request_method = Method::GET;
 					else if (method == "POST") header.request_method = Method::POST;
 					else return;
-					header.path = read_word(p, line.c_str() + line.length() - p);
-					if (header.path.empty()) return;//´íÎóµÄÇëÇó£¬URLÎª¿Õ
-					std::string p_version = read_word(p, line.c_str() + line.length() - p);
-					if (p_version != protocol_version) return;//²»Ö§³ÖµÄ°æ±¾
-					//Ñ­»·¶ÁÈ¡
+					header.path = read_word(p, (int)(line.c_str() + line.length() - p));
+					if (header.path.empty()) return;//é”™è¯¯çš„è¯·æ±‚ï¼ŒURLä¸ºç©º
+					std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
+					if (p_version != protocol_version) return;//ä¸æ”¯æŒçš„ç‰ˆæœ¬
+					//å¾ªç¯è¯»å–
 					bool is_true_request = false;
 					while (now_ptr < end_ptr)
 					{
-						line = read_line(now_ptr, end_ptr - now_ptr);
+						line = read_line(now_ptr, (int)(end_ptr - now_ptr));
 						if (line == "\r\n")
 						{
 							is_true_request = true;
@@ -463,16 +463,16 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 						{
 							header.headers.AddHeader(line);
 						}
-						catch (const HTTPException& ex) {}
+						catch (const HTTPException&) {}
 					}
 					if (is_true_request == false) return;
 					if (header.request_method == Method::POST)
 					{
-						//¼ì²éÊÇ·ñ¾ßÓĞContentLength
+						//æ£€æŸ¥æ˜¯å¦å…·æœ‰ContentLength
 						Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
 						if (!header.headers["Content-Length"].empty())
 						{
-							//´æÔÚContentLength
+							//å­˜åœ¨ContentLength
 							std::string str = header.headers["Content-Length"];
 							int len = 0;
 							std::stringstream(str) >> len;
@@ -480,11 +480,11 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 							else post_content.Resize(1);
 							if (end_ptr - now_ptr > 0)
 							{
-								//µÚÒ»´Î½ÓÊÕµÄ»¹ÓĞÊı¾İ
+								//ç¬¬ä¸€æ¬¡æ¥æ”¶çš„è¿˜æœ‰æ•°æ®
 								if (end_ptr - now_ptr <= len)
 								{
 									post_content.SetData(now_ptr, end_ptr - now_ptr);
-									len -= end_ptr - now_ptr;
+									len -= (int)(end_ptr - now_ptr);
 								}
 								else
 								{
@@ -530,7 +530,7 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			auto& get = this->on_get_request;
 			auto& post = this->on_post_request;
 			std::thread([connection, protocol_version, get, post]() {
-				//¶ÁÈ¡Header
+				//è¯»å–Header
 				try
 				{
 					RequestHeader header;
@@ -538,23 +538,23 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 					auto buffer = connection.Recv(1024 * 1024);
 					const char* now_ptr = (const char*)buffer.Data();
 					const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
-					//¶ÁÈ¡Ğ­ÒéĞĞ
-					std::string line = read_line(now_ptr, end_ptr - now_ptr);
+					//è¯»å–åè®®è¡Œ
+					std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
 					if (is_empty_line(line)) return;
 					p = line.c_str();
-					std::string method = read_word(p, line.length());
+					std::string method = read_word(p, (int)line.length());
 					if (method == "GET") header.request_method = Method::GET;
 					else if (method == "POST") header.request_method = Method::POST;
 					else return;
-					header.path = read_word(p, line.c_str() + line.length() - p);
-					if (header.path.empty()) return;//´íÎóµÄÇëÇó£¬URLÎª¿Õ
-					std::string p_version = read_word(p, line.c_str() + line.length() - p);
-					if (p_version != protocol_version) return;//²»Ö§³ÖµÄ°æ±¾
-					//Ñ­»·¶ÁÈ¡
+					header.path = read_word(p, (int)(line.c_str() + line.length() - p));
+					if (header.path.empty()) return;//é”™è¯¯çš„è¯·æ±‚ï¼ŒURLä¸ºç©º
+					std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
+					if (p_version != protocol_version) return;//ä¸æ”¯æŒçš„ç‰ˆæœ¬
+					//å¾ªç¯è¯»å–
 					bool is_true_request = false;
 					while (now_ptr < end_ptr)
 					{
-						line = read_line(now_ptr, end_ptr - now_ptr);
+						line = read_line(now_ptr,(int)( end_ptr - now_ptr));
 						if (line == "\r\n")
 						{
 							is_true_request = true;
@@ -564,16 +564,16 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 						{
 							header.headers.AddHeader(line);
 						}
-						catch (const HTTPException& ex) {}
+						catch (const HTTPException&) {}
 					}
 					if (is_true_request == false) return;
 					if (header.request_method == Method::POST)
 					{
-						//¼ì²éÊÇ·ñ¾ßÓĞContentLength
+						//æ£€æŸ¥æ˜¯å¦å…·æœ‰ContentLength
 						Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
 						if (!header.headers["Content-Length"].empty())
 						{
-							//´æÔÚContentLength
+							//å­˜åœ¨ContentLength
 							std::string str = header.headers["Content-Length"];
 							int len = 0;
 							std::stringstream(str) >> len;
@@ -581,11 +581,11 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 							else post_content.Resize(1);
 							if (end_ptr - now_ptr > 0)
 							{
-								//µÚÒ»´Î½ÓÊÕµÄ»¹ÓĞÊı¾İ
+								//ç¬¬ä¸€æ¬¡æ¥æ”¶çš„è¿˜æœ‰æ•°æ®
 								if (end_ptr - now_ptr <= len)
 								{
 									post_content.SetData(now_ptr, end_ptr - now_ptr);
-									len -= end_ptr - now_ptr;
+									len -= (int)(end_ptr - now_ptr);
 								}
 								else
 								{

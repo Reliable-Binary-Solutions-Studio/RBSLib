@@ -1,4 +1,4 @@
-#include "Buffer.h"
+ï»¿#include "Buffer.h"
 #include <cstring>
 RbsLib::BufferException::BufferException(const std::string& string)noexcept :error_reason(string) {}
 
@@ -169,7 +169,7 @@ void RbsLib::Buffer::AppendToEnd(const IBuffer& buffer)
 	std::uint64_t buffer_len = buffer.GetLength();
 	if (this->length + buffer.GetLength() > this->size)
 	{
-		//ÐèÒªÖØÐÂ·ÖÅä¿Õ¼ä
+		//éœ€è¦é‡æ–°åˆ†é…ç©ºé—´
 		this->Resize(this->size * 2 >= this->length + buffer_len ? this->size * 2 : this->length + buffer_len);
 		for (std::uint64_t i = 0; i < buffer_len; ++i)
 		{

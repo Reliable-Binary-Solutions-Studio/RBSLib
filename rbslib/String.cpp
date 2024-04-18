@@ -1,4 +1,4 @@
-#include "String.h"
+﻿#include "String.h"
 #include <string>
 #include <cstring>
 #include <vector>
