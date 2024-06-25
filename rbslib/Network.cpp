@@ -728,3 +728,214 @@ RbsLib::Network::HTTP::Request::Request(const TCP::TCPConnection& connection, co
 	:connection(connection),header(header),content(buffer)
 {
 }
+
+RbsLib::Network::UDP::UDPServer::UDPServer()
+{
+	net::init_network();
+	this->sock = std::shared_ptr<SOCKET>(new SOCKET(socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)), [](SOCKET* sock) {
+		if (sock && *sock != INVALID_SOCKET)
+		{
+#ifdef WIN32
+			closesocket(*sock);
+#endif
+#ifdef LINUX
+			close(*sock);
+#endif
+		}
+		delete sock;
+		});
+	this->is_bind=std::make_shared<bool>(false);
+	if (*this->sock == INVALID_SOCKET) throw net::NetworkException("Allocate socket failed");
+}
+
+RbsLib::Network::UDP::UDPServer::UDPServer(int port, const std::string& address)
+	:UDPServer()
+{
+	this->Bind(port, address);
+}
+
+void RbsLib::Network::UDP::UDPServer::Bind(int port, const std::string& address)
+{
+	struct sockaddr_in s_sin;
+	if (*this->is_bind) throw net::NetworkException("This object is already bind");
+	if (port < 0 || port>65535) throw net::NetworkException("Port mast be in range 0-65535");
+	s_sin.sin_family = AF_INET;
+	s_sin.sin_port = htons(port);
+	s_sin.sin_addr.s_addr = inet_addr(address.c_str());
+	if (bind(*this->sock, (struct sockaddr*)&s_sin, sizeof(s_sin)) != 0)
+	{
+		std::string reason = "Bind failed";
+		#ifdef LINUX
+		reason += ": ";
+		reason += strerror(errno);
+		#endif
+	}
+	*this->is_bind = true;
+}
+
+void RbsLib::Network::UDP::UDPServer::Close(void)
+{
+	this->is_bind = nullptr;
+	this->sock = nullptr;
+}
+
+void RbsLib::Network::UDP::UDPServer::Send(const std::string& ip, int port, const RbsLib::IBuffer& buffer) const
+{
+	//构建目标地址
+	struct sockaddr_in s_sin = {0};
+	s_sin.sin_family = AF_INET;
+	s_sin.sin_port = htons(port);
+	s_sin.sin_addr.s_addr = inet_addr(ip.c_str());
+	if (sendto(*this->sock, (const char*)buffer.Data(), buffer.GetLength(), 0, (struct sockaddr*)&s_sin, sizeof(s_sin)) != buffer.GetLength())
+	{
+		throw net::NetworkException("Send failed");
+	}
+}
+
+void RbsLib::Network::UDP::UDPServer::Send(const std::string& ip, int port, const void* data, int len) const
+{
+	//构建目标地址
+	struct sockaddr_in s_sin = { 0 };
+	s_sin.sin_family = AF_INET;
+	s_sin.sin_port = htons(port);
+	s_sin.sin_addr.s_addr = inet_addr(ip.c_str());
+	if (sendto(*this->sock, (const char*)data, len, 0, (struct sockaddr*)&s_sin, sizeof(s_sin)) != len)
+	{
+		throw net::NetworkException("Send failed");
+	}
+}
+
+void RbsLib::Network::UDP::UDPServer::Send(const UDPDatagram& datagram) const
+{
+	if (sendto(*this->sock, (const char*)datagram.GetBuffer().Data(), datagram.GetBuffer().GetLength(), 0, (struct sockaddr*)&datagram.GetConnectionInfo(), sizeof(struct sockaddr_in)) != datagram.GetBuffer().GetLength())
+	{
+		throw net::NetworkException("Send failed");
+	}
+}
+
+auto RbsLib::Network::UDP::UDPServer::Recv(int max_len) const ->UDPDatagram
+{
+	struct sockaddr_in info;
+	socklen_t info_len = sizeof(info);
+	std::unique_ptr<char[]> data=std::make_unique<char[]>(max_len);
+	int s;
+	if ((s = recvfrom(*this->sock, data.get(), max_len, 0, (struct sockaddr*)&info, &info_len)) <= 0)
+	{
+		throw net::NetworkException("Recv failed");
+	}
+	RbsLib::Buffer buffer(data.get(), s);
+	return UDPDatagram(info, buffer);
+}
+
+
+RbsLib::Network::UDP::UDPDatagram::UDPDatagram(const sockaddr_in& connection_info, const RbsLib::Buffer& buffer)
+	:connection_info(connection_info),buffer(buffer)
+{
+}
+
+sockaddr_in& RbsLib::Network::UDP::UDPDatagram::GetConnectionInfo(void) const noexcept
+{
+	return const_cast<sockaddr_in&>(this->connection_info);
+}
+
+RbsLib::Buffer& RbsLib::Network::UDP::UDPDatagram::GetBuffer(void) const noexcept
+{
+	return const_cast<RbsLib::Buffer&>(this->buffer);
+}
+
+std::string RbsLib::Network::UDP::UDPDatagram::GetAddress(void) const noexcept
+{
+	return inet_ntoa(this->connection_info.sin_addr);
+}
+
+int RbsLib::Network::UDP::UDPDatagram::GetPort(void) const noexcept
+{
+	return ntohs(this->connection_info.sin_port);
+}
+
+RbsLib::Network::UDP::UDPClient::UDPClient()
+{
+	net::init_network();
+	this->sock = std::shared_ptr<SOCKET>(new SOCKET(socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)), [](SOCKET* sock) {
+		if (sock && *sock != INVALID_SOCKET)
+		{
+#ifdef WIN32
+			closesocket(*sock);
+#endif
+#ifdef LINUX
+			close(*sock);
+#endif
+		}
+		delete sock;
+		});
+	if (*this->sock == INVALID_SOCKET) throw net::NetworkException("Allocate socket failed");
+}
+
+void RbsLib::Network::UDP::UDPClient::Send(const std::string& ip, int port, const RbsLib::IBuffer& buffer) const
+{
+	//构建目标地址
+	struct sockaddr_in s_sin = { 0 };
+	s_sin.sin_family = AF_INET;
+	s_sin.sin_port = htons(port);
+	s_sin.sin_addr.s_addr = inet_addr(ip.c_str());
+	if (sendto(*this->sock, (const char*)buffer.Data(), buffer.GetLength(), 0, (struct sockaddr*)&s_sin, sizeof(s_sin)) != buffer.GetLength())
+	{
+		throw net::NetworkException("Send failed");
+	}
+}
+
+void RbsLib::Network::UDP::UDPClient::Send(const std::string& ip, int port, const void* data, int len) const
+{
+	//构建目标地址
+	struct sockaddr_in s_sin = { 0 };
+	s_sin.sin_family = AF_INET;
+	s_sin.sin_port = htons(port);
+	s_sin.sin_addr.s_addr = inet_addr(ip.c_str());
+	if (sendto(*this->sock, (const char*)data, len, 0, (struct sockaddr*)&s_sin, sizeof(s_sin)) != len)
+	{
+		throw net::NetworkException("Send failed");
+	}
+}
+
+void RbsLib::Network::UDP::UDPClient::Send(const UDPDatagram& datagram) const
+{
+	if (sendto(*this->sock, (const char*)datagram.GetBuffer().Data(), datagram.GetBuffer().GetLength(), 0, (struct sockaddr*)&datagram.GetConnectionInfo(), sizeof(struct sockaddr_in)) != datagram.GetBuffer().GetLength())
+	{
+		throw net::NetworkException("Send failed");
+	}
+}
+
+auto RbsLib::Network::UDP::UDPClient::Recv(const std::string& ip, int port, int max_len) const->UDPDatagram
+{
+	struct sockaddr_in info;
+	socklen_t info_len = sizeof(info);
+	std::unique_ptr<char[]> data = std::make_unique<char[]>(max_len);
+	int s;
+	//构建目标地址
+	struct sockaddr_in s_sin = { 0 };
+	s_sin.sin_family = AF_INET;
+	s_sin.sin_port = htons(port);
+	s_sin.sin_addr.s_addr = inet_addr(ip.c_str());
+	if ((s = recvfrom(*this->sock, data.get(), max_len, 0, (struct sockaddr*)&info, &info_len)) <= 0)
+	{
+		throw net::NetworkException("Recv failed");
+	}
+	RbsLib::Buffer buffer(data.get(), s);
+	return UDPDatagram(info, buffer);
+}
+
+auto RbsLib::Network::UDP::UDPClient::Recv(const UDPDatagram& datagram) const->UDPDatagram
+{
+	struct sockaddr_in info;
+	socklen_t info_len = sizeof(info);
+	std::unique_ptr<char[]> data = std::make_unique<char[]>(datagram.GetBuffer().GetLength());
+	int s;
+	if ((s = recvfrom(*this->sock, data.get(), datagram.GetBuffer().GetLength(), 0, (struct sockaddr*)&info, &info_len)) <= 0)
+	{
+		throw net::NetworkException("Recv failed");
+	}
+	RbsLib::Buffer buffer(data.get(), s);
+	return UDPDatagram(info, buffer);
+}
+
+

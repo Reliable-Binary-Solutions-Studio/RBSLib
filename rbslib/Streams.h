@@ -37,6 +37,8 @@ namespace RbsLib
 			virtual void Write(const IBuffer& buffer) = 0;
 			virtual void Write(const void* ptr, int64_t size) = 0;
 		};
+		class IOStream :public IInputStream, public IOutputStream
+		{};
 		class IStream :public IInputStream, public IOutputStream
 		{
 		private:

@@ -4,8 +4,10 @@
 #include <mutex>
 #include <functional>
 #include <map>
+#include <memory>
 #include "BaseType.h"
 #include "Buffer.h"
+#include "Streams.h"
 #ifdef WIN32
 #include <WinSock2.h>
 #pragma comment(lib,"ws2_32.lib")
@@ -44,6 +46,7 @@ namespace RbsLib
 			class TCPServer;
 			class TCPConnection;
 			class TCPClient;
+			class TCPStream;
 			class TCPConnection
 			{
 				/*同一时间同一连接对象只能有一个线程进行拷贝、移动、析构*/
@@ -51,7 +54,7 @@ namespace RbsLib
 				SOCKET sock;
 				struct sockaddr_in connection_info;
 				//int info_len;
-				std::mutex* mutex = nullptr;/*多线程保护引用计数器*/
+				std::mutex* mutex = nullptr;
 				int* reference_counter = nullptr;
 				TCPConnection(SOCKET sock, const struct sockaddr_in& connection_info, int info_len)noexcept;
 				friend class TCPServer;
@@ -95,6 +98,11 @@ namespace RbsLib
 			{
 			public:
 				static RbsLib::Network::TCP::TCPConnection Connect(std::string ip, int port);
+			};
+			class TCPStream :public RbsLib::Streams::IOStream
+			{
+			public:
+
 			};
 		}
 		namespace HTTP
@@ -170,6 +178,48 @@ namespace RbsLib
 				void LoopWait(bool use_thread_pool = false, int keep_threads_number = 0);
 				void SetPostHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func);
 				void SetGetHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header)>& func);
+			};
+		}
+		namespace UDP
+		{
+			class UDPDatagram
+			{
+			private:
+				struct sockaddr_in connection_info;
+				RbsLib::Buffer buffer;
+			public:
+				UDPDatagram(const struct sockaddr_in& connection_info, const RbsLib::Buffer& buffer);
+				struct sockaddr_in& GetConnectionInfo(void)const noexcept;
+				RbsLib::Buffer& GetBuffer(void)const noexcept;
+				std::string GetAddress(void)const noexcept;
+				int GetPort(void)const noexcept;
+			};
+			class UDPServer
+			{
+			private:
+				std::shared_ptr<SOCKET> sock=nullptr;
+				std::shared_ptr<bool> is_bind=nullptr;
+			public:
+				UDPServer();
+				UDPServer(int port, const std::string& address = "");
+				void Bind(int port, const std::string& address = "");
+				void Close(void);
+				void Send(const std::string& ip, int port, const RbsLib::IBuffer& buffer)const ;
+				void Send(const std::string& ip, int port, const void* data, int len)const;
+				void Send(const UDPDatagram& datagram)const;
+				UDPDatagram Recv(int max_len)const;
+			};
+			class UDPClient
+			{
+			private:
+				std::shared_ptr<SOCKET> sock = nullptr;
+			public:
+				UDPClient();
+				void Send(const std::string& ip, int port, const RbsLib::IBuffer& buffer)const;
+				void Send(const std::string& ip, int port, const void* data, int len)const;
+				void Send(const UDPDatagram& datagram)const;
+				UDPDatagram Recv(const std::string& ip,int port,int max_len)const;
+				UDPDatagram Recv(const UDPDatagram& datagram)const;
 			};
 		}
 	}

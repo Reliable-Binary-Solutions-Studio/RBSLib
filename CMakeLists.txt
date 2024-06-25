@@ -13,15 +13,15 @@ project ("rbslib")
 set(CMAKE_CXX_STANDARD 17)
 
 
-file(GLOB RBS_LIB_HEADERS "rbslib/*.h")
+file(GLOB RBS_LIB_HEADERS "rbslib/*.h" "rbslib/Windows/*.h")
 
-file(GLOB RBS_LIB_SRC "rbslib/*.cpp")
+file(GLOB RBS_LIB_SRC "rbslib/*.cpp" "rbslib/Windows/*.cpp")
 
 # 将源代码添加到此项目的可执行文件。
-add_executable (rbslib "test.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS} )
+add_executable (rbslib_test "test.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS} )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET rbslib PROPERTY CXX_STANDARD 20)
+  set_property(TARGET rbslib_test PROPERTY CXX_STANDARD 20)
 endif()
 
 # TODO: 如有需要，请添加测试并安装目标。
