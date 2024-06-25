@@ -1,4 +1,5 @@
 #include "BasicUI.h"
+#ifdef WIN32
 #include <unordered_map>
 #include <d2d1.h>
 #include <d2d1helper.h>
@@ -378,3 +379,5 @@ void RbsLib::Windows::BasicUI::UIElement::OnWindowSizeChanged(Window& window)
 void RbsLib::Windows::BasicUI::UIElement::MouseMove(Window& window, int x, int y, int key_status)
 {
 }
+
+#endif

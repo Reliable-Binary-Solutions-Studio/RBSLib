@@ -1,8 +1,6 @@
-﻿#include "rbslib/Network.h"
-#include "rbslib/Windows/BasicUI.h"
+﻿#include "rbslib/Buffer.h"
 #include <iostream>
 #include <thread>
-#include <wincodec.h>
 #include <stdio.h>
 
 int main()

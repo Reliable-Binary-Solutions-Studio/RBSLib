@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <cstring>
 #include <exception>
 namespace RbsLib::Math
 {

@@ -31,18 +31,9 @@ RbsLib::Buffer::Buffer(const void* data, uint64_t data_size)
 }
 
 RbsLib::Buffer::Buffer(const Buffer& buffer)
+	:Buffer(buffer.GetSize())
 {
-	if (buffer.size == 0)
-	{
-		this->Buffer::Buffer(0);
-	}
-	else
-	{
-		this->data_ptr = new char[buffer.GetSize()];
-		this->size = buffer.GetSize();
-		this->length = buffer.GetLength();
-		memcpy(this->data_ptr, buffer.Data(), buffer.length);
-	}
+	this->SetData(buffer.Data(), buffer.GetLength());
 }
 
 RbsLib::Buffer::Buffer(Buffer&& buffer) noexcept
@@ -66,7 +57,8 @@ RbsLib::Buffer::Buffer(const std::string& str, bool zero)
 		this->length = this->size = str.length();
 		if (this->length == 0)
 		{
-			this->Buffer::Buffer(0);
+			this->size = this->length = 0;
+			this->data_ptr = nullptr;
 			return;
 		}
 		this->data_ptr = new char[this->length];
