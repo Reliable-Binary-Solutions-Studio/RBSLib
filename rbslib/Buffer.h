@@ -32,10 +32,10 @@ namespace RbsLib
 		uint64_t size;
 		uint64_t length;
 	public:
-		Buffer(uint64_t size);
+		Buffer(uint64_t size = 0);
 		Buffer(const void* data, uint64_t data_size);
 		Buffer(const Buffer& buffer);
-		Buffer(Buffer&& buffer);
+		Buffer(Buffer&& buffer) noexcept;
 		Buffer(const std::string& str, bool zero = false);
 		~Buffer(void);
 		const Buffer& operator=(const Buffer& buffer) noexcept;
@@ -48,6 +48,8 @@ namespace RbsLib
 		std::string ToString(void)const noexcept;
 		template <typename T> T GetData(void)const
 		{
+			if (sizeof(T) > this->length)
+				throw BufferException("Buffer length is less than sizeof(T)!");
 			return *(T*)(this->data_ptr);
 		}
 		void SetData(const void* data, uint64_t data_size)override;

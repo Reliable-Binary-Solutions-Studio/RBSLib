@@ -8,19 +8,22 @@ const char* RbsLib::BufferException::what(void) const noexcept
 }
 
 RbsLib::Buffer::Buffer(uint64_t size)
+	:size(size),length(0)
 {
-	if (size == 0) throw RbsLib::BufferException("Buffer size can not be set with 0");
+	if (size == 0)
+	{
+		this->data_ptr = nullptr;
+	}
 	else
 	{
 		this->data_ptr = new char[size];
-		this->size = size;
-		this->length = 0;
 	}
 }
 
 RbsLib::Buffer::Buffer(const void* data, uint64_t data_size)
+	:Buffer(data_size)
 {
-	if (data_size == 0) throw RbsLib::BufferException("Buffer size can not be set with 0");
+	if (data_size == 0) return;
 	this->data_ptr = new char[data_size];
 	this->size = data_size;
 	this->length = data_size;
@@ -29,13 +32,20 @@ RbsLib::Buffer::Buffer(const void* data, uint64_t data_size)
 
 RbsLib::Buffer::Buffer(const Buffer& buffer)
 {
-	this->data_ptr = new char[buffer.GetSize()];
-	this->size = buffer.GetSize();
-	this->length = buffer.GetLength();
-	memcpy(this->data_ptr, buffer.Data(), buffer.length);
+	if (buffer.size == 0)
+	{
+		this->Buffer::Buffer(0);
+	}
+	else
+	{
+		this->data_ptr = new char[buffer.GetSize()];
+		this->size = buffer.GetSize();
+		this->length = buffer.GetLength();
+		memcpy(this->data_ptr, buffer.Data(), buffer.length);
+	}
 }
 
-RbsLib::Buffer::Buffer(Buffer&& buffer)
+RbsLib::Buffer::Buffer(Buffer&& buffer) noexcept
 {
 	this->data_ptr = buffer.data_ptr;
 	this->length = buffer.length;
@@ -53,9 +63,14 @@ RbsLib::Buffer::Buffer(const std::string& str, bool zero)
 	}
 	else
 	{
-		this->data_ptr = new char[str.length()];
-		memcpy(this->data_ptr, str.c_str(), str.length());
 		this->length = this->size = str.length();
+		if (this->length == 0)
+		{
+			this->Buffer::Buffer(0);
+			return;
+		}
+		this->data_ptr = new char[this->length];
+		memcpy(this->data_ptr, str.c_str(), this->length);
 	}
 }
 
@@ -66,11 +81,21 @@ RbsLib::Buffer::~Buffer(void)
 
 const RbsLib::Buffer& RbsLib::Buffer::operator=(const Buffer& buffer) noexcept
 {
-	delete[](char*)this->data_ptr;
-	this->data_ptr = new char[buffer.GetSize()];
-	this->size = buffer.GetSize();
-	this->length = buffer.GetLength();
-	memcpy(this->data_ptr, buffer.Data(), buffer.length);
+	this->~Buffer();
+	if (buffer.size == 0)
+	{
+		this->data_ptr = nullptr;
+		this->size = 0;
+		this->length = 0;
+	}
+	else
+	{
+		this->data_ptr = new char[buffer.GetSize()];
+		this->size = buffer.GetSize();
+		this->length = buffer.GetLength();
+		memcpy(this->data_ptr, buffer.Data(), buffer.length);
+	}
+
 	return *this;
 }
 
@@ -86,13 +111,13 @@ const RbsLib::Buffer& RbsLib::Buffer::operator=(Buffer&& buffer) noexcept
 
 uint8_t& RbsLib::Buffer::operator[](uint64_t index)
 {
-	if (index < this->GetSize()) return *(uint8_t*)((uint8_t*)this->data_ptr + index);
+	if (index < this->GetSize()&&this->GetSize()) return *(uint8_t*)((uint8_t*)this->data_ptr + index);
 	else throw RbsLib::BufferException("Buffer index out of range");
 }
 
 uint8_t RbsLib::Buffer::operator[](uint64_t index) const
 {
-	if (index < this->GetSize()) return *(uint8_t*)((uint8_t*)this->data_ptr + index);
+	if (index < this->GetSize()&& this->GetSize()) return *(uint8_t*)((uint8_t*)this->data_ptr + index);
 	else throw RbsLib::BufferException("Buffer index out of range");
 }
 
@@ -113,6 +138,7 @@ uint64_t RbsLib::Buffer::GetLength(void) const noexcept
 
 std::string RbsLib::Buffer::ToString(void) const noexcept
 {
+	if (this->GetSize() == 0) return std::string();
 	return std::string((const char*)this->Data(), this->GetLength());
 }
 
@@ -121,6 +147,7 @@ void RbsLib::Buffer::SetData(const void* data, uint64_t data_size)
 	if (data_size > this->size) throw BufferException("data_size > buffer_size");
 	else
 	{
+		if (!data_size)return;
 		memcpy(this->data_ptr, data, data_size);
 		this->length = data_size;
 	}
@@ -133,7 +160,13 @@ void RbsLib::Buffer::SetLength(uint64_t len)
 
 void RbsLib::Buffer::Resize(uint64_t buffer_size)
 {
-	if (buffer_size == 0) throw RbsLib::BufferException("Buffer size can not be set with 0");
+	if (buffer_size == 0)
+	{
+		this->~Buffer();
+		this->length = this->size = 0;
+		this->data_ptr = nullptr;
+		return;
+	}
 	void* data = new char[buffer_size];
 	if (buffer_size >= this->length)
 	{
