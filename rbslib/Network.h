@@ -74,6 +74,7 @@ namespace RbsLib
 				SOCKET GetSocket(void)const noexcept;
 				std::string GetAddress(void)const noexcept;
 				void Close(void);
+				void SetSocketOption(int level, int optname, const void* optval, socklen_t optlen);
 			};
 			class TCPServer
 			{

@@ -329,6 +329,14 @@ void RbsLib::Network::TCP::TCPConnection::Close(void)
 	/*如果Mutex为null，则该对象一定发生过移动构造、移动拷贝或已经释放，无需释放任何资源*/
 }
 
+void RbsLib::Network::TCP::TCPConnection::SetSocketOption(int level, int optname, const void* optval, socklen_t optlen)
+{
+	if (setsockopt(this->sock, level, optname, (const char*)optval, optlen) == SOCKET_ERROR)
+	{
+		throw net::NetworkException("Set socket option failed");
+	}
+}
+
 RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std::string ip, int port)
 {
 	net::init_network();
