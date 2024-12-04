@@ -13,9 +13,9 @@ project ("rbslib")
 set(CMAKE_CXX_STANDARD 17)
 
 
-file(GLOB RBS_LIB_HEADERS "rbslib/*.h" "rbslib/Windows/*.h")
+file(GLOB RBS_LIB_HEADERS "rbslib/*.h" "rbslib/Windows/*.h" "rbslib/Linux/*.h")
 
-file(GLOB RBS_LIB_SRC "rbslib/*.cpp" "rbslib/Windows/*.cpp")
+file(GLOB RBS_LIB_SRC "rbslib/*.cpp" "rbslib/Windows/*.cpp" "rbslib/Linux/*.cpp")
 
 # 将源代码添加到此项目的可执行文件。
 add_executable (rbslib_test "test.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS} )

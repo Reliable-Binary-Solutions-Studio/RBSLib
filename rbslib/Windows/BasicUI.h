@@ -58,6 +58,7 @@ namespace RbsLib::Windows::BasicUI
 		static void _OnTimerHandler(Window& window, UINT_PTR id);
 		static void _OnWindowSizeChangedHandler(Window& window);
 		static void _MouseMoveHandler(Window& window, int x, int y, int key_status);
+		static void _OnLeftButtonDownHandler(Window& window, int x, int y, int key_status);
 		//消息循环处理函数
 		void PaintWindow(void);
 		void OnWindowSizeChanged(void);
@@ -75,6 +76,7 @@ namespace RbsLib::Windows::BasicUI
 		RbsLib::Function::Function<void(Window&)> OnPaintHandler;
 		RbsLib::Function::Function<void(Window&, UINT_PTR)> OnTimerHandler;
 		RbsLib::Function::Function<void(Window&, int x, int y, int key_status)> MouseMoveHandler;
+		RbsLib::Function::Function<void(Window&,int x,int y,int key_status)> OnLeftButtonDownHandler;
 
 		Window(const std::string& window_name, int width, int heigth, Color color);
 		Window(const Window&) = delete;
@@ -86,7 +88,7 @@ namespace RbsLib::Windows::BasicUI
 		void KillTimer(UINT_PTR id);
 		void ClearTimer(void);
 		void AddUIElement(std::shared_ptr<UIElement> ui_element);
-		void Draw(void);
+		void Draw(void);//立即无效化当前呈现目标
 		const RECT& GetD2D1RenderTargetRect(void) const;
 		RECT GetRect(void) const;
 		void ResetD2D1RenderTarget(void);
@@ -103,6 +105,7 @@ namespace RbsLib::Windows::BasicUI
 		virtual void OnTimer(Window& window,UINT_PTR timer_id);
 		virtual void OnWindowSizeChanged(Window& window);
 		virtual void MouseMove(Window& window, int x, int y, int key_status);
+		virtual void OnLeftButtonDown(Window& window, int x, int y, int key_status);
 	};
 	class Button :public UIElement
 	{

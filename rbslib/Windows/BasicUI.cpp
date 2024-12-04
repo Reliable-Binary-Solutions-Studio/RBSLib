@@ -24,6 +24,9 @@ auto CALLBACK RbsLib::Windows::BasicUI::Window::WindowProc(HWND hwnd, UINT messa
 	RECT rc;
 	switch (message)
 	{
+	case WM_LBUTTONDOWN:
+		self_ref->_OnLeftButtonDownHandler(*self_ref, LOWORD(lParam), HIWORD(lParam), wParam);
+		return 0;
 	case WM_MOUSEMOVE:
 		self_ref->MouseMove(LOWORD(lParam), HIWORD(lParam), wParam);
 		return 0;
@@ -157,6 +160,14 @@ void RbsLib::Windows::BasicUI::Window::_MouseMoveHandler(Window& window, int x, 
 	}
 }
 
+void RbsLib::Windows::BasicUI::Window::_OnLeftButtonDownHandler(Window& window, int x, int y, int key_status)
+{
+	for (auto& element : window.ui_element_list)
+	{
+		element->OnLeftButtonDown(window, x, y, key_status);
+	}
+}
+
 
 void RbsLib::Windows::BasicUI::Window::PaintWindow(void)
 {
@@ -282,6 +293,7 @@ RbsLib::Windows::BasicUI::Window::Window(const std::string& window_name, int wid
 	this->OnTimerHandler += this->_OnTimerHandler;
 	this->WindowSizeChangedHandler += this->_OnWindowSizeChangedHandler;
 	this->MouseMoveHandler += this->_MouseMoveHandler;
+	this->OnLeftButtonDownHandler += this->_OnLeftButtonDownHandler;
 	RunningWindowsList.insert({ this->hwnd,this });
 	this->CreateD2D1Factory();
 }
@@ -377,6 +389,10 @@ void RbsLib::Windows::BasicUI::UIElement::OnWindowSizeChanged(Window& window)
 }
 
 void RbsLib::Windows::BasicUI::UIElement::MouseMove(Window& window, int x, int y, int key_status)
+{
+}
+
+void RbsLib::Windows::BasicUI::UIElement::OnLeftButtonDown(Window& window, int x, int y, int key_status)
 {
 }
 
