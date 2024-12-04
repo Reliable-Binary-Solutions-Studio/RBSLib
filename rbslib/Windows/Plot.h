@@ -29,6 +29,6 @@ namespace RbsLib::Windows::Graph
 	public:
 		void AddPlot(const std::vector<double>& x, const std::vector<double>& y, D2D1::ColorF);
 		void AddScatter(const std::vector<double>& x, const std::vector<double>& y, D2D1::ColorF);
-		void Show(void);
+		void Show(const std::string& name);
 	};
 }

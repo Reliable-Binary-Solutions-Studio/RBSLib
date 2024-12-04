@@ -22,11 +22,11 @@ void RbsLib::Windows::Graph::Plot::AddScatter(const std::vector<double>& x, cons
 	scatter_color_list.push_back(color);
 }
 
-void RbsLib::Windows::Graph::Plot::Show(void)
+void RbsLib::Windows::Graph::Plot::Show(const std::string& name)
 {
 	if (x_list.size() == 0 && scatter_x_list.size() == 0)
 		return;
-	RbsLib::Windows::BasicUI::Window window("Plot", 800, 600, RbsLib::Windows::BasicUI::Color::WHITE);
+	RbsLib::Windows::BasicUI::Window window(name, 800, 600, RbsLib::Windows::BasicUI::Color::WHITE);
 	window.AddUIElement(std::make_shared<PlotElement>(x_list, y_list, color_list,scatter_x_list,scatter_y_list,scatter_color_list));
 	window.Show();
 }
