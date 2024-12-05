@@ -63,78 +63,92 @@ int main()
 	//生成训练数据
 	try
 	{
-		auto start_time = time(nullptr);
-		//生成数据为目标函数加上随机噪声
-		auto x_data = RbsLib::Math::Matrix<double>::LinearSpace(0, 10, 100);
-		auto y_data = x_data;
-		for (int i = 0; i < x_data.Rows(); ++i)
+		int data_size = 6472;
+		RbsLib::Math::Matrix<double> X(data_size,9);
+		RbsLib::Math::Matrix<double> Y(data_size, 2);
+		//读取数据
+		FILE* fp = fopen("C:\\Users\\yangp\\Desktop\\info.txt", "rt");
+		char line[1024];
+		int i = 0;
+		while (fgets(line, 1024, fp))
 		{
-			x_data[i][0] = x_data[i][0] + 0.1 * (rand() % 100) / 100;
+			sscanf(line, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
+				&X[i][0], &X[i][1], &X[i][2],
+				&X[i][3], &X[i][4], &X[i][5],
+				&X[i][6], &X[i][7], &X[i][8],
+				&Y[i][0], &Y[i][1]);
+			++i;
 		}
-		for (int i = 0; i < y_data.Rows(); ++i)
+		//拆分训练集测试集，训练集占90%
+		int train_size = data_size * 0.9;
+		int test_size = data_size - train_size;
+		auto train_index = GenerateUniqueRandomValues(0, data_size, train_size);
+		std::vector<int> test_index;
+		for (int i = 0; i < data_size; ++i)
 		{
-			y_data[i][0] = func(y_data[i][0]) + 0.1 * (rand() % 100) / 100;
+			if (std::find(train_index.begin(), train_index.end(), i) == train_index.end())
+			{
+				test_index.push_back(i);
+			}
 		}
-		//数据归一化
-		RbsLib::Math::Normalization<double> normalization_x, normalization_y;
-		normalization_x.Fit(x_data);
-		normalization_x.Normalize(x_data, true);
-		normalization_y.Fit(y_data);
-		normalization_y.Normalize(y_data, true);
-		//创建神经网络
-		auto lrelu = [](double x) {return RbsLib::Math::LeakyReLU(x); };
-		auto lrelu_d = [](double x) {return RbsLib::Math::LeakyReLU_derivative(x); };
-		RbsLib::MatchingLearning::NeuralNetworks net(
-			{ 1,20,5,1 },
-			{ lrelu,lrelu,lrelu },
-			{ lrelu_d,lrelu_d,lrelu_d },
+		RbsLib::Math::Matrix<double> X_train(train_size, 9);
+		RbsLib::Math::Matrix<double> Y_train(train_size, 2);
+		for (int i = 0; i < train_size; ++i)
+		{
+			X_train[i] = X[train_index[i]];
+			Y_train[i] = Y[train_index[i]];
+		}
+		//归一化
+		RbsLib::Math::Normalization<double> norm_x, norm_y;
+		norm_x.Fit(X_train);
+		norm_y.Fit(Y_train);
+		norm_x.Normalize(X_train,true);
+		norm_y.Normalize(Y_train,true);
+		//构建神经网络
+		RbsLib::MatchingLearning::NeuralNetworks nn({ 9, 120, 80, 2 },
+			{ RbsLib::Math::sigmoid, RbsLib::Math::sigmoid, RbsLib::Math::sigmoid },
+			{ RbsLib::Math::sigmoid_derivative, RbsLib::Math::sigmoid_derivative, RbsLib::Math::sigmoid_derivative },
 			0);
 		//训练
-		std::vector<double> loss_out;
-		net.Train(x_data, y_data, 0.01, 10000, [&loss_out](int epoch, double loss)
+		std::vector<double> loss;
+		nn.Train(X_train, Y_train, 0.01, 1000, [&loss](int epoch, double los) {
+			static int i = 0;
+			if (i > 1)
 			{
-				static int n = 0;
-				n += 1;
-				if (n % 100 == 0)
-				{
-					loss_out.push_back(loss);
-					std::cout << std::format("epoch:{},loss:{}\n", epoch, loss);
-				}
+				std::cout << std::format("epoch:{},loss:{}", epoch, los) << std::endl;
+				i = 0;
+				loss.push_back(los);
+			}
+			++i;
 			});
-		srand(time(0));
-		//预测数据
-		auto x_test = RbsLib::Math::Matrix<double>::LinearSpace(0, 10, 100);
-		auto y_predict = net.Predict(normalization_x.Normalize(x_test));
-		normalization_y.Denormalize(y_predict,true);
-		for (int i = 0; i < y_predict.Rows(); ++i)
+		nn.Save("car_model");
+		norm_x.Save("car_model_norm_x");
+		norm_y.Save("car_model_norm_y");
+		//测试
+		RbsLib::Math::Matrix<double> X_test(test_size, 9), Y_test(test_size, 2);
+		for (int i = 0; i < test_size; ++i)
 		{
-			std::cout << std::format("真实值:{} 预测值:{}\n", func(x_test[i][0]), y_predict[i][0]);
+			X_test[i] = X[test_index[i]];
+			Y_test[i] = Y[test_index[i]];
 		}
-		auto y_true = y_predict;
-		for (int i = 0; i < y_true.Rows(); ++i)
+		norm_x.Normalize(X_test, true);
+		auto y_pred = nn.Predict(X_test);
+		//反归一化
+		norm_y.Denormalize(y_pred, true);
+		//输出
+		for (int i = 0; i < test_size; ++i)
 		{
-			y_true[i][0] = func(x_test[i][0]);
+			std::cout << std::format("y_true:{:<10},{:<10},y_pred:{:<10},{:<10}", Y_test[i][0],Y_test[i][1], y_pred[i][0],y_pred[i][1]) << std::endl;
 		}
-		//绘制预测曲线
-		normalization_x.Denormalize(x_data,true);
-		normalization_y.Denormalize(y_data,true);
+		//绘制损失曲线
 		RbsLib::Windows::Graph::Plot plot;
-		plot.AddPlot(x_test.Column(0), y_predict.Column(0), D2D1::ColorF::Red);
-		//绘制真实曲线
-		plot.AddPlot(x_test.Column(0), y_true.Column(0), D2D1::ColorF::Blue);
-		//绘制训练集散点
-		plot.AddScatter(x_data.Column(0), y_data.Column(0), D2D1::ColorF::Green);
-		//在子线程中绘制loss曲线
-		std::thread t([&loss_out]()
-			{
-				RbsLib::Windows::Graph::Plot plot_loss;
-				plot_loss.AddPlot(RbsLib::Math::Matrix<double>::LinearSpace(0, loss_out.size(), loss_out.size()).Column(0), loss_out, D2D1::ColorF::Red);
-				plot_loss.Show("Loss");
-			});
-		//显示图像
-		plot.Show("Function Fitting");
-		t.join();
-		
+		auto loss_x = std::vector<double>(loss.size());
+		for (int i = 0; i < loss.size(); ++i)
+		{
+			loss_x[i] = i;
+		}
+		plot.AddPlot(loss_x, loss,D2D1::ColorF::Red);	
+		plot.Show("loss");
 	}
 	catch (const std::exception& e)
 	{
