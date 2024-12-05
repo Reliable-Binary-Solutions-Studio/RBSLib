@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <thread>
 #include <future>
+#include "Storage.h"
+#include "FileIO.h"
 
 namespace RbsLib
 {
@@ -407,8 +409,37 @@ namespace RbsLib
 				return data;
 			}
 
+			void Save(const std::string& path)
+			{
+				auto fp = RbsLib::Storage::StorageFile(path).Open(RbsLib::Storage::FileIO::OpenMode::Write | RbsLib::Storage::FileIO::OpenMode::Bin,
+					RbsLib::Storage::FileIO::SeekBase::begin,
+					0);
+				for (const auto& mm : MaxMin)
+				{
+					fp.WriteData<T>(mm.max);
+					fp.WriteData<T>(mm.min);
+				}
+			}
+			void Load(const std::string& path)
+			{
+				auto fp = RbsLib::Storage::StorageFile(path).Open(RbsLib::Storage::FileIO::OpenMode::Read | RbsLib::Storage::FileIO::OpenMode::Bin,
+					RbsLib::Storage::FileIO::SeekBase::begin,
+					0);
+				MaxMin.resize(RbsLib::Storage::StorageFile(path).GetFileSize() / (sizeof(T) * 2));
+				if (MaxMin.size() == 0) throw std::invalid_argument("File size is 0");
+				for (size_t i = 0; i < MaxMin.size(); i++)
+				{
+					fp.GetData<T>(MaxMin[i].max);
+					fp.GetData<T>(MaxMin[i].min);
+				}
+			}
+
 		};
 		double sigmoid(double x);
 		double sigmoid_derivative(double x);
+		double LeakyReLU(double x,double alpha = 0.01);
+		double LeakyReLU_derivative(double x, double alpha = 0.01);
+		double Tanh(double x);
+		double Tanh_derivative(double x);
 	}
 }

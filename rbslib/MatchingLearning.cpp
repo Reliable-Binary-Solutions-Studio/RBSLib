@@ -1,5 +1,6 @@
 #include "MatchingLearning.h"
 #include <cmath>
+#include "FileIO.h"
 
 RbsLib::MatchingLearning::NeuralNetworks::NeuralNetworks(
     std::vector<int> layers,
@@ -11,7 +12,8 @@ RbsLib::MatchingLearning::NeuralNetworks::NeuralNetworks(
     srand(random_seed);
 
     // 确保激活函数和导数函数数量与层数匹配
-    if (activation.size() != layers.size() || activation_derivative.size() != layers.size()) {
+    if (activation.size() != layers.size() - 1 || activation_derivative.size() != layers.size() - 1)
+    {
         throw std::invalid_argument("激活函数和导数函数数量必须与层数匹配");
     }
 
@@ -38,6 +40,9 @@ RbsLib::MatchingLearning::NeuralNetworks::NeuralNetworks(
                     this->layers[i].w[row][col] = rand_val;
                 }
             }
+            // 设置激活函数和导数
+            this->layers[i].activation = activation[i-1];
+            this->layers[i].activation_derivative = activation_derivative[i-1];
         }
 
         // 偏置初始化为零
@@ -47,9 +52,6 @@ RbsLib::MatchingLearning::NeuralNetworks::NeuralNetworks(
         this->layers[i].output = RbsLib::Math::Matrix<double>(layers[i], 1);
         this->layers[i].delta = RbsLib::Math::Matrix<double>(layers[i], 1);
 
-        // 设置激活函数和导数
-        this->layers[i].activation = activation[i];
-        this->layers[i].activation_derivative = activation_derivative[i];
 
         //初始化Z矩阵
 		this->layers[i].z = RbsLib::Math::Matrix<double>(layers[i], 1);
@@ -201,4 +203,52 @@ auto RbsLib::MatchingLearning::NeuralNetworks::Predict(RbsLib::Math::Matrix<doub
         result[i] = temp_layers.back().output.T()[0];
     }
     return result;
+}
+
+void RbsLib::MatchingLearning::NeuralNetworks::Save(const RbsLib::Storage::StorageFile& path)
+{
+	//保存模型
+	auto fp = path.Open(RbsLib::Storage::FileIO::OpenMode::Write|RbsLib::Storage::FileIO::OpenMode::Bin,
+        RbsLib::Storage::FileIO::SeekBase::begin,
+        0);
+	for (const auto& layer : layers)
+	{
+		//存储w
+		for (int i = 0; i < layer.w.Rows(); ++i)
+		{
+			for (int j = 0; j < layer.w.Cols(); ++j)
+			{
+				fp.WriteData<double>(layer.w[i][j]);
+			}
+		}
+		//存储b
+		for (int i = 0; i < layer.b.Rows(); ++i)
+		{
+			fp.WriteData<double>(layer.b[i][0]);
+		}
+	}
+}
+
+void RbsLib::MatchingLearning::NeuralNetworks::Load(const RbsLib::Storage::StorageFile& path)
+{
+	//加载模型
+	auto fp = path.Open(RbsLib::Storage::FileIO::OpenMode::Read | RbsLib::Storage::FileIO::OpenMode::Bin,
+		RbsLib::Storage::FileIO::SeekBase::begin,
+		0);
+	for (auto& layer : layers)
+	{
+		//加载w
+		for (int i = 0; i < layer.w.Rows(); ++i)
+		{
+			for (int j = 0; j < layer.w.Cols(); ++j)
+			{
+				fp.GetData<double>(layer.w[i][j]);
+			}
+		}
+		//加载b
+		for (int i = 0; i < layer.b.Rows(); ++i)
+		{
+			fp.GetData<double>(layer.b[i][0]);
+		}
+	}
 }
