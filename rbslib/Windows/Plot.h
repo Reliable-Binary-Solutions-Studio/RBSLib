@@ -1,4 +1,6 @@
 #pragma once
+#include "../BaseType.h"
+#ifdef WIN32
 #include "BasicUI.h"
 #include <vector>
 #include <list>
@@ -32,3 +34,5 @@ namespace RbsLib::Windows::Graph
 		void Show(const std::string& name);
 	};
 }
+
+#endif

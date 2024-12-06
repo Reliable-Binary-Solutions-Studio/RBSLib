@@ -1,5 +1,5 @@
 #include "Plot.h"
-
+#ifdef WIN32
 void RbsLib::Windows::Graph::Plot::AddPlot(const std::vector<double>& x, const std::vector<double>& y, D2D1::ColorF color)
 {
 	if (x.size() != y.size())
@@ -123,3 +123,4 @@ void RbsLib::Windows::Graph::Plot::PlotElement::Draw(RbsLib::Windows::BasicUI::W
 		brush->Release();
 	}
 }
+#endif

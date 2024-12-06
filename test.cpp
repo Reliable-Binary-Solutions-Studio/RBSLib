@@ -60,6 +60,11 @@ int max_index(double a, double b, double c) {
 int main()
 {
 	srand(time(0));
+	RbsLib::Math::Matrix<int> a({ {1,2,3} });
+	std::vector<std::vector<int>> x({ {1},{2},{3} });
+	RbsLib::Math::Matrix<int> b(x);
+	//a[1][1] = 10;
+	std::cout << (b).ToString() << std::endl;
 	//生成训练数据
 	try
 	{
@@ -95,8 +100,8 @@ int main()
 		RbsLib::Math::Matrix<double> Y_train(train_size, 2);
 		for (int i = 0; i < train_size; ++i)
 		{
-			X_train[i] = X[train_index[i]];
-			Y_train[i] = Y[train_index[i]];
+			X_train.Row(i, X[train_index[i]].ToVector());
+			Y_train.Row(i, Y[train_index[i]].ToVector());
 		}
 		//归一化
 		RbsLib::Math::Normalization<double> norm_x, norm_y;
@@ -128,8 +133,8 @@ int main()
 		RbsLib::Math::Matrix<double> X_test(test_size, 9), Y_test(test_size, 2);
 		for (int i = 0; i < test_size; ++i)
 		{
-			X_test[i] = X[test_index[i]];
-			Y_test[i] = Y[test_index[i]];
+			X_test.Row(i, X[test_index[i]].ToVector());
+			Y_test.Row(i, Y[test_index[i]].ToVector());
 		}
 		norm_x.Normalize(X_test, true);
 		auto y_pred = nn.Predict(X_test);

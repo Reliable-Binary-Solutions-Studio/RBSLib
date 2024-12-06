@@ -7,25 +7,83 @@
 #include <future>
 #include "Storage.h"
 #include "FileIO.h"
+#include <memory>
+#include "ArrayView.h"
 
 namespace RbsLib
 {
 	namespace Math
 	{
+
 		template <typename Tp>
 		class Matrix
 		{
 		private:
-			std::vector<std::vector<Tp>> data;
+			std::unique_ptr<Tp[]> data;
 			size_t rows;
 			size_t cols;
 		public:
-			Matrix() : rows(0), cols(0)
+			Matrix() 
+				: rows(0), cols(0)
 			{
 			}
+
 			Matrix(size_t rows, size_t cols, Tp value = 0)
-				: data(rows, std::vector<Tp>(cols, value)), rows(rows), cols(cols)
+				: data(std::make_unique<Tp[]>(rows* cols)), rows(rows), cols(cols)
 			{
+			}
+			Matrix(const Matrix<Tp>& other)
+				: data(std::make_unique<Tp[]>(other.rows* other.cols)), rows(other.rows), cols(other.cols)
+			{
+				std::memcpy(data.get(), other.data.get(), sizeof(Tp) * rows * cols);
+			}
+			Matrix(const std::vector<std::vector<Tp>>& data)
+				: data(std::make_unique<Tp[]>(data.size()* data[0].size())), rows(data.size()), cols(data[0].size())
+			{
+				for (size_t i = 0; i < rows; i++)
+				{
+					for (size_t j = 0; j < cols; j++)
+					{
+						this->data[i * cols + j] = data[i][j];
+					}
+				}
+			}
+			Matrix(Matrix<Tp>&& other) noexcept
+				: data(std::move(other.data)), rows(other.rows), cols(other.cols)
+			{
+				other.rows = 0;
+				other.cols = 0;
+			}
+			Matrix<Tp>& operator=(const Matrix<Tp>& other)
+			{
+				if (this == &other)
+				{
+					return *this;
+				}
+				data = std::make_unique<Tp[]>(other.rows * other.cols);
+				rows = other.rows;
+				cols = other.cols;
+				for (size_t i = 0; i < rows; i++)
+				{
+					for (size_t j = 0; j < cols; j++)
+					{
+						data[i * cols + j] = other.data[i * cols + j];
+					}
+				}
+				return *this;
+			}
+			Matrix<Tp>& operator=(Matrix<Tp>&& other) noexcept
+			{
+				if (this == &other)
+				{
+					return *this;
+				}
+				data = std::move(other.data);
+				rows = other.rows;
+				cols = other.cols;
+				other.rows = 0;
+				other.cols = 0;
+				return *this;
 			}
 			static Matrix<Tp> LinearSpace(Tp start, Tp end, size_t num)
 			{
@@ -39,45 +97,73 @@ namespace RbsLib
 			}
 			void Column(int index, const std::vector<Tp>& column)
 			{
+				if (index >= cols)
+				{
+					throw std::out_of_range("Index out of range");
+				}
 				if (column.size() != rows)
 				{
 					throw std::invalid_argument("Column size mismatch");
 				}
 				for (size_t i = 0; i < rows; i++)
 				{
-					data[i][index] = column[i];
+					data[i*this->cols+index] = column[i];
 				}
 			}
 			std::vector<Tp> Column(int index)
 			{
+				if (index >= cols)
+				{
+					throw std::out_of_range("Index out of range");
+				}
 				std::vector<Tp> column(rows);
 				for (size_t i = 0; i < rows; i++)
 				{
-					column[i] = data[i][index];
+					column[i] = data[i * this->cols + index];
 				}
 				return column;
 			}
 
-			const std::vector<Tp>& Row(int index) const
+
+			RbsLib::ArrayView<Tp> Row(int index)
 			{
-				return data[index];
+				if (index >= rows)
+				{
+					throw std::out_of_range("Index out of range");
+				}
+				return RbsLib::ArrayView<Tp>(data.get()+index*this->cols, cols);
+			}
+			RbsLib::ConstArrayView<Tp> Row(int index) const
+			{
+				if (index >= rows)
+				{
+					throw std::out_of_range("Index out of range");
+				}
+				return RbsLib::ConstArrayView<Tp>(data.get() + index * this->cols, cols);
 			}
 
 			void Row(int index, const std::vector<Tp>& row)
 			{
+				if (index >= this->rows)
+				{
+					throw std::out_of_range("Index out of range");
+				}
 				if (row.size() != cols)
 				{
 					throw std::invalid_argument("Row size mismatch");
 				}
-				data[index] = row;
+				for (size_t i = 0; i < cols; i++)
+				{
+					data[index * cols + i] = row[i];
+				}
 			}
-			std::vector<Tp>& operator[](size_t index)
+			RbsLib::ArrayView<Tp> operator[](size_t index)
 			{
-				return data[index];
+				return Row(index);
 			}
-			const std::vector<Tp>& operator[](size_t index) const
+			RbsLib::ConstArrayView<Tp> operator[](size_t index) const
 			{
-				return data[index];
+				return Row(index);
 			}
 			size_t Rows() const
 			{
@@ -98,7 +184,7 @@ namespace RbsLib
 				{
 					for (size_t j = 0; j < cols; j++)
 					{
-						result += std::to_string(data[i][j]);
+						result += std::to_string((*this)[i][j]);
 						if (j < cols - 1)
 						{
 							result += " ";
@@ -118,7 +204,7 @@ namespace RbsLib
 				{
 					for (size_t j = 0; j < cols; j++)
 					{
-						result[j][i] = data[i][j];
+						result[j][i] = (*this)[i][j];
 					}
 				}
 				return result;
