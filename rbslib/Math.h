@@ -5,8 +5,6 @@
 #include <stdexcept>
 #include <thread>
 #include <future>
-#include "Storage.h"
-#include "FileIO.h"
 #include <memory>
 #include "ArrayView.h"
 
@@ -14,7 +12,6 @@ namespace RbsLib
 {
 	namespace Math
 	{
-
 		template <typename Tp>
 		class Matrix
 		{
@@ -84,6 +81,10 @@ namespace RbsLib
 				other.rows = 0;
 				other.cols = 0;
 				return *this;
+			}
+			Tp* Data()
+			{
+				return data.get();
 			}
 			static Matrix<Tp> LinearSpace(Tp start, Tp end, size_t num)
 			{
@@ -415,117 +416,12 @@ namespace RbsLib
 			return result;
 		}
 
-		template <typename T>
-		class Normalization
-		{
-		private:
-			struct MaxMinPack
-			{
-				double max;
-				double min;
-			};
-			std::vector<MaxMinPack> MaxMin;
-		public:
-			void Fit(const Matrix<T>& data)
-			{
-				MaxMin.resize(data.Cols());
-				for (size_t i = 0; i < data.Cols(); i++)
-				{
-					MaxMin[i].max = data[0][i];
-					MaxMin[i].min = data[0][i];
-					for (size_t j = 1; j < data.Rows(); j++)
-					{
-						if (data[j][i] > MaxMin[i].max)
-						{
-							MaxMin[i].max = data[j][i];
-						}
-						if (data[j][i] < MaxMin[i].min)
-						{
-							MaxMin[i].min = data[j][i];
-						}
-					}
-				}
-			}
-			Matrix<T> Normalize(const Matrix<T>& data)
-			{
-				Matrix<T> result(data.Rows(), data.Cols());
-				for (size_t i = 0; i < data.Cols(); i++)
-				{
-					for (size_t j = 0; j < data.Rows(); j++)
-					{
-						result[j][i] = (data[j][i] - MaxMin[i].min) / (MaxMin[i].max - MaxMin[i].min);
-					}
-				}
-				return result;
-			}
-			Matrix<T> Denormalize(const Matrix<T>& data)
-			{
-				Matrix<T> result(data.Rows(), data.Cols());
-				for (size_t i = 0; i < data.Cols(); i++)
-				{
-					for (size_t j = 0; j < data.Rows(); j++)
-					{
-						result[j][i] = data[j][i] * (MaxMin[i].max - MaxMin[i].min) + MaxMin[i].min;
-					}
-				}
-				return result;
-			}
-
-			Matrix<T>& Normalize(Matrix<T>& data, bool)
-			{
-				for (size_t i = 0; i < data.Cols(); i++)
-				{
-					for (size_t j = 0; j < data.Rows(); j++)
-					{
-						data[j][i] = (data[j][i] - MaxMin[i].min) / (MaxMin[i].max - MaxMin[i].min);
-					}
-				}
-				return data;
-			}
-
-			Matrix<T>& Denormalize(Matrix<T>& data, bool)
-			{
-				for (size_t i = 0; i < data.Cols(); i++)
-				{
-					for (size_t j = 0; j < data.Rows(); j++)
-					{
-						data[j][i] = data[j][i] * (MaxMin[i].max - MaxMin[i].min) + MaxMin[i].min;
-					}
-				}
-				return data;
-			}
-
-			void Save(const std::string& path)
-			{
-				auto fp = RbsLib::Storage::StorageFile(path).Open(RbsLib::Storage::FileIO::OpenMode::Write | RbsLib::Storage::FileIO::OpenMode::Bin,
-					RbsLib::Storage::FileIO::SeekBase::begin,
-					0);
-				for (const auto& mm : MaxMin)
-				{
-					fp.WriteData<T>(mm.max);
-					fp.WriteData<T>(mm.min);
-				}
-			}
-			void Load(const std::string& path)
-			{
-				auto fp = RbsLib::Storage::StorageFile(path).Open(RbsLib::Storage::FileIO::OpenMode::Read | RbsLib::Storage::FileIO::OpenMode::Bin,
-					RbsLib::Storage::FileIO::SeekBase::begin,
-					0);
-				MaxMin.resize(RbsLib::Storage::StorageFile(path).GetFileSize() / (sizeof(T) * 2));
-				if (MaxMin.size() == 0) throw std::invalid_argument("File size is 0");
-				for (size_t i = 0; i < MaxMin.size(); i++)
-				{
-					fp.GetData<T>(MaxMin[i].max);
-					fp.GetData<T>(MaxMin[i].min);
-				}
-			}
-
-		};
-		double sigmoid(double x);
-		double sigmoid_derivative(double x);
-		double LeakyReLU(double x,double alpha = 0.01);
-		double LeakyReLU_derivative(double x, double alpha = 0.01);
-		double Tanh(double x);
-		double Tanh_derivative(double x);
+		
+		float sigmoid(float x);
+		float sigmoid_derivative(float x);
+		float LeakyReLU(float x,float alpha = 0.01);
+		float LeakyReLU_derivative(float x, float alpha = 0.01);
+		float Tanh(float x);
+		float Tanh_derivative(float x);
 	}
 }

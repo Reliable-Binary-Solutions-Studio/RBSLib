@@ -1,33 +1,33 @@
 #include "Math.h"
 #include <cmath>
 
-double RbsLib::Math::sigmoid(double x)
+float RbsLib::Math::sigmoid(float x)
 {
 	return 1.0 / (1.0 + std::exp(-x));
 }
 
-double RbsLib::Math::sigmoid_derivative(double x)
+float RbsLib::Math::sigmoid_derivative(float x)
 {
 	return sigmoid(x) * (1 - sigmoid(x));
 }
 
-double RbsLib::Math::LeakyReLU(double x,double alpha)
+float RbsLib::Math::LeakyReLU(float x,float alpha)
 {
 	return (x > 0) ? x : alpha * x;
 }
 
-double RbsLib::Math::LeakyReLU_derivative(double x,double alpha)
+float RbsLib::Math::LeakyReLU_derivative(float x,float alpha)
 {
 	return (x > 0) ? 1 : alpha;
 }
 
-double RbsLib::Math::Tanh(double x)
+float RbsLib::Math::Tanh(float x)
 {
 	return std::tanh(x);
 }
 
-double RbsLib::Math::Tanh_derivative(double x)
+float RbsLib::Math::Tanh_derivative(float x)
 {
-	double tanh_x = std::tanh(x);
+	float tanh_x = std::tanh(x);
 	return 1.0 - tanh_x * tanh_x; // 1 - tanh^2(x)
 }
