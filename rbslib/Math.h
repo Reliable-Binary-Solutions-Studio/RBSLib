@@ -211,6 +211,52 @@ namespace RbsLib
 				return result;
 			}
 
+			/*
+			* @brief 原地为矩阵每个元素应用函数
+			* @param func 函数
+			*/
+			void Apply(std::function<Tp(Tp)> func)
+			{
+				for (size_t i = 0; i < rows; i++)
+				{
+					for (size_t j = 0; j < cols; j++)
+					{
+						(*this)[i][j] = func((*this)[i][j]);
+					}
+				}
+			}
+			/*
+			* @brief 为矩阵每个元素应用函数得到新矩阵
+			* @param func 函数
+			* @param copy 复制矩阵，不论填什么都会复制矩阵，若不希望复制矩阵，使用Apply的其他重载
+			*/
+			Matrix<Tp> Apply(std::function<Tp(Tp)> func, bool copy)
+			{
+				Matrix<Tp> result(rows, cols);
+				for (size_t i = 0; i < rows; i++)
+				{
+					for (size_t j = 0; j < cols; j++)
+					{
+						result[i][j] = func((*this)[i][j]);
+					}
+				}
+				return result;
+			}
+
+			Matrix<Tp> HadamardProduct(const Matrix<Tp>& other) const
+			{
+				if (!CheckSameSize(*this, other))
+				{
+					throw std::invalid_argument("Matrix size mismatch");
+				}
+				Matrix<Tp> result(rows, cols);
+				for (int i = 0; i < rows * cols; i++)
+				{
+					result.data[i] = data[i] * other.data[i];
+				}
+				return result;
+			}
+
 		};
 		template <typename T>
 		Matrix<T> operator+(const Matrix<T>& a, const Matrix<T>& b)
@@ -257,7 +303,7 @@ namespace RbsLib
 			Matrix<T> result(a.Rows(), b.Cols());
 
 			// 设置块的大小
-			size_t block_size = 64;  // 可以根据实际情况调整
+			size_t block_size = 64;
 
 			for (size_t i = 0; i < a.Rows(); i += block_size)
 			{
@@ -282,108 +328,7 @@ namespace RbsLib
 
 			return result;
 		}
-		template <typename T>
-		Matrix<T> AddMatrixThreaded(const Matrix<T>& a, const Matrix<T>& b)
-		{
-			if (!Matrix<T>::CheckSameSize(a, b))
-			{
-				throw std::invalid_argument("Matrix size mismatch");
-			}
-
-			Matrix<T> result(a.Rows(), a.Cols());
-
-			// 定义线程数为硬件支持的并发线程数
-			unsigned int num_threads = std::thread::hardware_concurrency();
-			unsigned int rows_per_thread = a.Rows() / num_threads;
-			unsigned int remaining_rows = a.Rows() % num_threads;  // 处理剩余行
-			std::vector<std::future<void>> futures;
-
-			// 创建线程并分配每个线程负责的行
-			for (unsigned int t = 0; t < num_threads; ++t)
-			{
-				futures.push_back(std::async(std::launch::async, [&, t]() {
-					unsigned int start_row = t * rows_per_thread;
-					unsigned int end_row = (t == num_threads - 1) ? (t + 1) * rows_per_thread + remaining_rows : (t + 1) * rows_per_thread;
-
-					// 每个线程处理指定范围内的行
-					for (unsigned int i = start_row; i < end_row; ++i)
-					{
-						for (unsigned int j = 0; j < a.Cols(); ++j)
-						{
-							result[i][j] = a[i][j] + b[i][j];
-						}
-					}
-					}));
-			}
-
-			// 等待所有线程完成
-			for (auto& future : futures)
-			{
-				future.get();
-			}
-
-			return result;
-		}
-
-		template <typename T>
-		Matrix<T> MulMatrixThreaded(const Matrix<T>& a, const Matrix<T>& b)
-		{
-			if (a.Cols() != b.Rows())
-			{
-				throw std::invalid_argument("Matrix size mismatch");
-			}
-
-			Matrix<T> result(a.Rows(), b.Cols());
-
-			// 设置块的大小
-			size_t block_size = 64;  // 可以根据实际情况调整
-
-			// 获取并发线程数
-			unsigned int num_threads = std::thread::hardware_concurrency();
-			unsigned int rows_per_thread = a.Rows() / num_threads;
-			unsigned int remaining_rows = a.Rows() % num_threads;
-
-			std::vector<std::future<void>> futures;
-
-			// 并行计算每个小块的乘法
-			for (unsigned int t = 0; t < num_threads; ++t)
-			{
-				futures.push_back(std::async(std::launch::async, [&, t]() {
-					unsigned int start_row = t * rows_per_thread;
-					unsigned int end_row = (t == num_threads - 1) ? (t + 1) * rows_per_thread + remaining_rows : (t + 1) * rows_per_thread;
-
-					for (size_t i = start_row; i < end_row; i += block_size)
-					{
-						for (size_t j = 0; j < b.Cols(); j += block_size)
-						{
-							for (size_t k = 0; k < a.Cols(); k += block_size)
-							{
-								for (size_t ii = i; ii < std::min(i + block_size, a.Rows()); ++ii)
-								{
-									for (size_t jj = j; jj < std::min(j + block_size, b.Cols()); ++jj)
-									{
-										for (size_t kk = k; kk < std::min(k + block_size, a.Cols()); ++kk)
-										{
-											result[ii][jj] += a[ii][kk] * b[kk][jj];
-										}
-									}
-								}
-							}
-						}
-					}
-					}));
-			}
-
-			// 等待所有线程完成
-			for (auto& future : futures)
-			{
-				future.get();
-			}
-
-			return result;
-		}
-
-
+		
 		template <typename T>
 		Matrix<T> operator*(const Matrix<T>& a, T b)
 		{
