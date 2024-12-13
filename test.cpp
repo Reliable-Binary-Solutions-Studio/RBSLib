@@ -15,7 +15,7 @@
 
 float func(float x)
 {
-	return sin( x);
+	return sin(x);
 }
 
 
@@ -93,14 +93,14 @@ int main()
 		norm_x.Normalize(X_train,true);
 		norm_y.Normalize(Y_train,true);
 		//构建神经网络
-		RbsLib::MatchingLearning::NeuralNetworks nn({ 1, 10,10, 1 },
+		RbsLib::MatchingLearning::NeuralNetworks nn({ 1, 120,80, 1 },
 			{ RbsLib::Math::sigmoid, RbsLib::Math::sigmoid, RbsLib::Math::sigmoid },
 			{  RbsLib::Math::sigmoid_derivative,RbsLib::Math::sigmoid_derivative, RbsLib::Math::sigmoid_derivative },
 			0);
 		auto nn1 = nn;
 		//训练
 		std::vector<double> loss;
-		nn1.Train(X_train, Y_train, 0.01,0, [&loss](int epoch, float los) {
+		nn1.Train(X_train, Y_train, 0.1,50000, [&loss](int epoch, float los) {
 			static int i = 0;
 			if (i > 1)
 			{
@@ -111,7 +111,8 @@ int main()
 			++i;
 			});
 		std::cout << "-----------------------------------------" << std::endl;
-		nn.TrainCUDA(X_train, Y_train, 0.01, 200, [&loss](int epoch, float los) {
+		auto start_time = std::chrono::high_resolution_clock::now();
+		nn.TrainCUDA(X_train, Y_train, 0.1, 0, [&loss](int epoch, float los) {
 			static int i = 0;
 			if (i > 1)
 			{
@@ -121,6 +122,8 @@ int main()
 			}
 			++i;
 			},1);
+		auto end_time = std::chrono::high_resolution_clock::now();
+		std::cout << "cuda time:" << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() << "ms" << std::endl;
 		RbsLib::Windows::Graph::Plot plot;
 		auto loss_x = std::vector<double>(loss.size());
 		for (int i = 0; i < loss.size(); ++i)
