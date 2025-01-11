@@ -59,6 +59,7 @@ namespace RbsLib::Windows::BasicUI
 		static void _OnWindowSizeChangedHandler(Window& window);
 		static void _MouseMoveHandler(Window& window, int x, int y, int key_status);
 		static void _OnLeftButtonDownHandler(Window& window, int x, int y, int key_status);
+		static void _OnKeyDownHandler(Window& window, unsigned int vkey, unsigned int param);
 		//消息循环处理函数
 		void PaintWindow(void);
 		void OnWindowSizeChanged(void);
@@ -77,6 +78,7 @@ namespace RbsLib::Windows::BasicUI
 		RbsLib::Function::Function<void(Window&, UINT_PTR)> OnTimerHandler;
 		RbsLib::Function::Function<void(Window&, int x, int y, int key_status)> MouseMoveHandler;
 		RbsLib::Function::Function<void(Window&,int x,int y,int key_status)> OnLeftButtonDownHandler;
+		RbsLib::Function::Function<void(Window&, unsigned int, unsigned int)> OnKeyDownHandler;
 
 		Window(const std::string& window_name, int width, int heigth, Color color);
 		Window(const Window&) = delete;
@@ -106,6 +108,7 @@ namespace RbsLib::Windows::BasicUI
 		virtual void OnWindowSizeChanged(Window& window);
 		virtual void MouseMove(Window& window, int x, int y, int key_status);
 		virtual void OnLeftButtonDown(Window& window, int x, int y, int key_status);
+		virtual void OnKeyDown(Window& window, unsigned int vkey, unsigned int param);
 	};
 	class Button :public UIElement
 	{
@@ -126,5 +129,6 @@ namespace RbsLib::Windows::BasicUI
 			RbsLib::Function::Function<void(Button&)> OnClick;
 		};
 	};
+	double GetDistance(const Point& a, const Point& b);
 }
 #endif

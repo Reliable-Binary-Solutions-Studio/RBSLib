@@ -5,6 +5,7 @@
 #include <d2d1helper.h>
 #include <dwrite.h>
 #include <wincodec.h>
+#include <windowsx.h>
 
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "dwrite")
@@ -28,7 +29,7 @@ auto CALLBACK RbsLib::Windows::BasicUI::Window::WindowProc(HWND hwnd, UINT messa
 		self_ref->_OnLeftButtonDownHandler(*self_ref, LOWORD(lParam), HIWORD(lParam), wParam);
 		return 0;
 	case WM_MOUSEMOVE:
-		self_ref->MouseMove(LOWORD(lParam), HIWORD(lParam), wParam);
+		self_ref->MouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam);
 		return 0;
 	case WM_TIMER:
 		self_ref->OnTimer(wParam);
@@ -41,6 +42,9 @@ auto CALLBACK RbsLib::Windows::BasicUI::Window::WindowProc(HWND hwnd, UINT messa
 		return 0;
 	case WM_DESTROY:
 		PostQuitMessage(0);
+		return 0;
+	case WM_KEYDOWN:
+		self_ref->_OnKeyDownHandler(*self_ref, wParam, lParam);
 		return 0;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
@@ -102,38 +106,6 @@ void RbsLib::Windows::BasicUI::Window::_OnPaintHandler(Window& window)
 	{
 		x->Draw(window);
 	}
-	/*
-	ID2D1SolidColorBrush* pBlackBrush = NULL;
-	window.d2d1_render_target->CreateSolidColorBrush(
-		D2D1::ColorF(D2D1::ColorF::Black),
-		&pBlackBrush
-	);
-	window.d2d1_render_target->Clear(D2D1::ColorF(0, 255, 255));
-	// Create the path geometry.
-	ID2D1PathGeometry* m_pPathGeometry = NULL;
-	window.d2d1_factory->CreatePathGeometry(&m_pPathGeometry);
-	// Write to the path geometry using the geometry sink to create a star.
-	ID2D1GeometrySink* pSink = NULL;
-	m_pPathGeometry->Open(&pSink);
-	pSink->SetFillMode(D2D1_FILL_MODE_WINDING);
-	pSink->BeginFigure(D2D1::Point2F(20, 50), D2D1_FIGURE_BEGIN_FILLED);
-	pSink->AddLine(D2D1::Point2F(100, 50));
-	pSink->AddLine(D2D1::Point2F(100, 100));
-	pSink->AddLine(D2D1::Point2F(20, 100));
-	pSink->EndFigure(D2D1_FIGURE_END_CLOSED);
-	pSink->Close();
-	pSink->Release();
-
-	ID2D1Layer* layer = NULL;
-
-	window.d2d1_render_target->CreateLayer(NULL, &layer);
-	window.d2d1_render_target->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), m_pPathGeometry), layer);
-	window.d2d1_render_target->Clear(D2D1::ColorF(D2D1::ColorF::Yellow));
-	window.d2d1_render_target->PopLayer();
-	layer->Release();
-	m_pPathGeometry->Release();
-	pBlackBrush->Release();
-	*/
 }
 
 void RbsLib::Windows::BasicUI::Window::_OnTimerHandler(Window& window, UINT_PTR id)
@@ -165,6 +137,14 @@ void RbsLib::Windows::BasicUI::Window::_OnLeftButtonDownHandler(Window& window, 
 	for (auto& element : window.ui_element_list)
 	{
 		element->OnLeftButtonDown(window, x, y, key_status);
+	}
+}
+
+void RbsLib::Windows::BasicUI::Window::_OnKeyDownHandler(Window& window, unsigned int vkey, unsigned int param)
+{
+	for (auto& element : window.ui_element_list)
+	{
+		element->OnKeyDown(window, vkey, param);
 	}
 }
 
@@ -396,4 +376,13 @@ void RbsLib::Windows::BasicUI::UIElement::OnLeftButtonDown(Window& window, int x
 {
 }
 
+void RbsLib::Windows::BasicUI::UIElement::OnKeyDown(Window& window, unsigned int vkey, unsigned param)
+{
+}
+
 #endif
+
+double RbsLib::Windows::BasicUI::GetDistance(const Point& a, const Point& b)
+{
+	return sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+}
