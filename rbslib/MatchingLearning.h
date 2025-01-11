@@ -130,6 +130,21 @@ namespace RbsLib::MatchingLearning
             target_max = t_max;
         }
 
+		void Fit(const RbsLib::Math::Matrix<T>& data)
+		{
+			MaxMin.resize(data.Cols());
+			for (size_t i = 0; i < data.Cols(); ++i)
+			{
+				MaxMin[i].max = data[0][i];
+				MaxMin[i].min = data[0][i];
+				for (size_t j = 1; j < data.Rows(); ++j)
+				{
+					if (data[j][i] > MaxMin[i].max) MaxMin[i].max = data[j][i];
+					if (data[j][i] < MaxMin[i].min) MaxMin[i].min = data[j][i];
+				}
+			}
+		}
+
         // 数据归一化到指定区间
         RbsLib::Math::Matrix<T> Normalize(const RbsLib::Math::Matrix<T>& data)
         {

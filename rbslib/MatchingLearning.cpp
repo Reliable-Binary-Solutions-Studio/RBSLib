@@ -207,7 +207,10 @@ auto RbsLib::MatchingLearning::NeuralNetworks::Predict(RbsLib::Math::Matrix<floa
         }
 
         // ´æ´¢½á¹û
-        result[i] = temp_layers.back().output.T()[0];
+		for (int k = 0; k < temp_layers.back().output.Rows(); ++k)
+		{
+			result[i][k] = temp_layers.back().output[k][0];
+		}
     }
     return result;
 }
