@@ -20,7 +20,7 @@ if (ENABLE_CUDA)
     message(STATUS "CUDA enabled")
     add_definitions(-DENABLE_CUDA) # 定义预处理宏
     #set(CUDA_NVCC_FLAGS -G;-g;-allow-unsupported-compiler)
-    set(CUDA_NVCC_FLAGS -O3 -allow-unsupported-compiler -arch=compute_86 -code=sm_86,compute_86)
+    set(CUDA_NVCC_FLAGS -allow-unsupported-compiler -arch=compute_86 -code=sm_86,compute_86)
     add_definitions(-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH)
 endif()
 
@@ -37,11 +37,14 @@ if (ENABLE_CUDA)
     target_link_libraries(rbslib_test ${CUDA_LIBRARIES}) # 普通签名方式
 else()
     add_executable(rbslib_test "test.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
+    add_executable(generate "GenerateDataSets.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
+    set_property(TARGET generate PROPERTY CXX_STANDARD 20)
 endif()
 
 
 # 设置 C++ 标准版本
 set_property(TARGET rbslib_test PROPERTY CXX_STANDARD 20)
+
 
 # 显示 CUDA 编译的状态
 if (ENABLE_CUDA)
