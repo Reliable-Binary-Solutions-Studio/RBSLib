@@ -9,7 +9,9 @@ endif()
 project("rbslib")
 
 # 设置 C++ 标准
-set(CMAKE_CXX_STANDARD 17)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++20")
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 提供启用 CUDA 的选项，默认为关闭
@@ -38,6 +40,8 @@ if (ENABLE_CUDA)
 else()
     add_executable(rbslib_test "test.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     add_executable(generate "GenerateDataSets.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
+    add_executable(guitest "guitest.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
+    add_executable(flappy_bird "flappybird.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     set_property(TARGET generate PROPERTY CXX_STANDARD 20)
 endif()
 
