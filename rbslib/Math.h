@@ -8,6 +8,7 @@
 #include <memory>
 #include <algorithm>
 #include "ArrayView.h"
+#include "TaskPool.h"
 
 namespace RbsLib
 {
@@ -84,6 +85,10 @@ namespace RbsLib
 				return *this;
 			}
 			Tp* Data()
+			{
+				return data.get();
+			}
+			const Tp* Data() const
 			{
 				return data.get();
 			}
@@ -227,6 +232,39 @@ namespace RbsLib
 				}
 			}
 			/*
+			* @brief 使用多线程为矩阵每个元素应用函数
+			* 需要注意func的线程安全性
+			* @param pool 线程池对象
+			*/
+			void ApplyMultiThread(std::function<Tp(Tp)> func, RbsLib::Thread::ThreadPool& pool)
+			{
+				int thread_num = std::thread::hardware_concurrency() - 1;
+				size_t block_size = this->cols * this->rows / thread_num;
+				std::list<RbsLib::Thread::ThreadPool::TaskResult<void>> results;
+				for (int i = 0; i < thread_num; i++)
+				{
+					results.emplace_back(pool.Run([&func](decltype(this) mat, int thread_index,size_t block_size) {
+						size_t start = thread_index * block_size;
+						size_t end = (thread_index + 1) * block_size;
+						for (size_t i = start; i < end; i++)
+						{
+							mat->data[i] = func(mat->data[i]);
+						}
+						},this,i,block_size));
+				}
+				size_t start = thread_num * block_size;
+				size_t end = this->cols * this->rows;
+				for (size_t i = start; i < end; i++)
+				{
+					this->data[i] = func(this->data[i]);
+				}
+				for (auto& result : results)
+				{
+					result.GetResult();
+				}
+			}
+
+			/*
 			* @brief 为矩阵每个元素应用函数得到新矩阵
 			* @param func 函数
 			* @param copy 复制矩阵，不论填什么都会复制矩阵，若不希望复制矩阵，使用Apply的其他重载
@@ -243,7 +281,43 @@ namespace RbsLib
 				}
 				return result;
 			}
-
+			/*
+			* @brief 为矩阵每个元素应用函数得到新矩阵多线程版本
+			* @param func 函数
+			* @param copy 复制矩阵，不论填什么都会复制矩阵，若不希望复制矩阵，使用Apply的其他重载
+			*/
+			Matrix<Tp> ApplyMultiThread(std::function<Tp(Tp)> func, RbsLib::Thread::ThreadPool& pool, bool copy)
+			{
+				Matrix<Tp> result(rows, cols);
+				int thread_num = std::thread::hardware_concurrency() - 1;
+				size_t block_size = this->cols * this->rows / thread_num;
+				std::list<RbsLib::Thread::ThreadPool::TaskResult<void>> results;
+				for (int i = 0; i < thread_num; i++)
+				{
+					results.emplace_back(pool.Run([&func](decltype(this) mat, decltype(this) res, int thread_index, size_t block_size) {
+						size_t start = thread_index * block_size;
+						size_t end = (thread_index + 1) * block_size;
+						for (size_t i = start; i < end; i++)
+						{
+							res->data[i] = func(mat->data[i]);
+						}
+						}, this, &result, i, block_size));
+				}
+				size_t start = thread_num * block_size;
+				size_t end = this->cols * this->rows;
+				for (size_t i = start; i < end; i++)
+				{
+					result.data[i] = func(this->data[i]);
+				}
+				for (auto& result : results)
+				{
+					result.GetResult();
+				}
+				return result;
+			}
+			/*
+			* @brief 矩阵对应元素相乘
+			*/
 			Matrix<Tp> HadamardProduct(const Matrix<Tp>& other) const
 			{
 				if (!CheckSameSize(*this, other))
@@ -258,6 +332,84 @@ namespace RbsLib
 				return result;
 			}
 
+			/*
+			* @brief 矩阵对应元素相乘多线程版本
+			*/
+			Matrix<Tp> HadamardProductMultiThread (const Matrix<Tp>& other, RbsLib::Thread::ThreadPool& pool) const
+			{
+				Matrix<Tp> result(rows, cols);
+				int thread_num = std::thread::hardware_concurrency() - 1;
+				size_t block_size = this->cols * this->rows / thread_num;
+				std::list<RbsLib::Thread::ThreadPool::TaskResult<void>> results;
+				for (int i = 0; i < thread_num; i++)
+				{
+					results.emplace_back(pool.Run([](const Tp*A,const Tp*B ,Tp*C, int thread_index, size_t block_size) {
+						size_t start = thread_index * block_size;
+						size_t end = (thread_index + 1) * block_size;
+						for (size_t i = start; i < end; i++)
+						{
+							C[i] = A[i] * B[i];
+						}
+						}, this->data.get(), other.data.get(), result.data.get(), i, block_size));
+				}
+				size_t start = thread_num * block_size;
+				size_t end = this->cols * this->rows;
+				for (size_t i = start; i < end; i++)
+				{
+					result.data[i] = this->data[i] * other.data[i];
+				}
+				for (auto& result : results)
+				{
+					result.GetResult();
+				}
+				return result;
+			}
+
+			/*
+			* @brief 矩阵相等判断多线程版本 注意本函数返回不保证线程池中的任务已经完成
+			*/
+			bool EqualMultiThread(const Matrix<Tp>& other, RbsLib::Thread::ThreadPool& pool) const
+			{
+				if (!CheckSameSize(*this, other))
+				{
+					throw std::invalid_argument("Matrix size mismatch");
+				}
+				int thread_num = std::thread::hardware_concurrency() - 1;
+				size_t block_size = this->cols * this->rows / thread_num;
+				std::list<RbsLib::Thread::ThreadPool::TaskResult<bool>> results;
+				for (int i = 0; i < thread_num; i++)
+				{
+					results.emplace_back(pool.Run([](const Tp* A, const Tp* B, int thread_index, size_t block_size) {
+						size_t start = thread_index * block_size;
+						size_t end = (thread_index + 1) * block_size;
+						for (size_t i = start; i < end; i++)
+						{
+							if (A[i] != B[i])
+							{
+								return false;
+							}
+						}
+						return true;
+						}, this->data.get(), other.data.get(), i, block_size));
+				}
+				size_t start = thread_num * block_size;
+				size_t end = this->cols * this->rows;
+				for (size_t i = start; i < end; i++)
+				{
+					if (this->data[i] != other.data[i])
+					{
+						return false;
+					}
+				}
+				for (auto& result : results)
+				{
+					if (!result.GetResult())
+					{
+						return false;
+					}
+				}
+				return true;
+			}
 		};
 		template <typename T>
 		Matrix<T> operator+(const Matrix<T>& a, const Matrix<T>& b)
@@ -273,6 +425,40 @@ namespace RbsLib
 				{
 					result[i][j] = a[i][j] + b[i][j];
 				}
+			}
+			return result;
+		}
+		template<typename T>
+		Matrix<T> AddMultiThread(const Matrix<T>& a, const Matrix<T>& b, RbsLib::Thread::ThreadPool& pool)
+		{
+			if (!Matrix<T>::CheckSameSize(a, b))
+			{
+				throw std::invalid_argument("Matrix size mismatch");
+			}
+			Matrix<T> result(a.Rows(), a.Cols());
+			int thread_num = std::thread::hardware_concurrency() - 1;
+			size_t block_size = a.Cols() * a.Rows() / thread_num;
+			std::list<RbsLib::Thread::ThreadPool::TaskResult<void>> results;
+			for (int i = 0; i < thread_num; i++)
+			{
+				results.emplace_back(pool.Run([](const T* A, const T* B, T* C, int thread_index, size_t block_size) {
+					size_t start = thread_index * block_size;
+					size_t end = (thread_index + 1) * block_size;
+					for (size_t i = start; i < end; i++)
+					{
+						C[i] = A[i] + B[i];
+					}
+					}, a.Data(), b.Data(), result.Data(), i, block_size));
+			}
+			size_t start = thread_num * block_size;
+			size_t end = a.Cols() * a.Rows();
+			for (size_t i = start; i < end; i++)
+			{
+				result.Data()[i] = a.Data()[i] + b.Data()[i];
+			}
+			for (auto& result : results)
+			{
+				result.GetResult();
 			}
 			return result;
 		}
@@ -328,7 +514,49 @@ namespace RbsLib
 
 			return result;
 		}
-		
+		template<typename T>
+		Matrix<T> MultiplyMultiThread(const Matrix<T>& a, const Matrix<T>& b, RbsLib::Thread::ThreadPool& pool)
+		{
+			if (a.Cols() != b.Rows())
+			{
+				throw std::invalid_argument("Matrix size mismatch");
+			}
+			Matrix<T> result(a.Rows(), b.Cols());
+			// 设置块的大小
+			size_t block_size = 64;
+			int thread_num = std::thread::hardware_concurrency() - 1;
+			std::list<RbsLib::Thread::ThreadPool::TaskResult<void>> results;
+			for (int t = 0; t < thread_num; t++)
+			{
+				results.emplace_back(pool.Run([&a, &b, &result, block_size, t, thread_num]() {
+					for (size_t i = t * block_size; i < a.Rows(); i += block_size * thread_num)
+					{
+						for (size_t j = 0; j < b.Cols(); j += block_size)
+						{
+							for (size_t k = 0; k < a.Cols(); k += block_size)
+							{
+								// 处理每个小块的乘法
+								for (size_t ii = i; ii < (std::min)(i + block_size, a.Rows()); ++ii)
+								{
+									for (size_t jj = j; jj < (std::min)(j + block_size, b.Cols()); ++jj)
+									{
+										for (size_t kk = k; kk < (std::min)(k + block_size, a.Cols()); ++kk)
+										{
+											result[ii][jj] += a[ii][kk] * b[kk][jj];
+										}
+									}
+								}
+							}
+						}
+					}
+					}));
+			}
+			for (auto& result : results)
+			{
+				result.GetResult();
+			}
+			return result;
+		}
 		template <typename T>
 		Matrix<T> operator*(const Matrix<T>& a, T b)
 		{
@@ -347,6 +575,36 @@ namespace RbsLib
 		{
 			return b * a;
 		}
+		template <typename T>
+		Matrix<T> MultiplyMultiThread(T a, const Matrix<T>& b, RbsLib::Thread::ThreadPool& pool)
+		{
+			Matrix<T> result(b.Rows(), b.Cols());
+			int thread_num = std::thread::hardware_concurrency() - 1;
+			size_t block_size = b.Cols() * b.Rows() / thread_num;
+			std::list<RbsLib::Thread::ThreadPool::TaskResult<void>> results;
+			for (int i = 0; i < thread_num; i++)
+			{
+				results.emplace_back(pool.Run([](const T* B, T* C, T a, int thread_index, size_t block_size) {
+					size_t start = thread_index * block_size;
+					size_t end = (thread_index + 1) * block_size;
+					for (size_t i = start; i < end; i++)
+					{
+						C[i] = a * B[i];
+					}
+					}, b.Data(), result.Data(), a, i, block_size));
+			}
+			size_t start = thread_num * block_size;
+			size_t end = b.Cols() * b.Rows();
+			for (size_t i = start; i < end; i++)
+			{
+				result.Data()[i] = a * b.Data()[i];
+			}
+			for (auto& result : results)
+			{
+				result.GetResult();
+			}
+			return result;
+		}
 		template <typename Tp>
 		Matrix<Tp> T(const Matrix<Tp>& a)
 		{
@@ -360,6 +618,7 @@ namespace RbsLib
 			}
 			return result;
 		}
+
 
 		
 		float sigmoid(float x);
