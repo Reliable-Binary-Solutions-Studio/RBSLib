@@ -6,6 +6,7 @@
 #include <thread>
 #include <future>
 #include <memory>
+#include <algorithm>
 #include "ArrayView.h"
 
 namespace RbsLib
@@ -304,7 +305,6 @@ namespace RbsLib
 
 			// 设置块的大小
 			size_t block_size = 64;
-
 			for (size_t i = 0; i < a.Rows(); i += block_size)
 			{
 				for (size_t j = 0; j < b.Cols(); j += block_size)
@@ -312,11 +312,11 @@ namespace RbsLib
 					for (size_t k = 0; k < a.Cols(); k += block_size)
 					{
 						// 处理每个小块的乘法
-						for (size_t ii = i; ii < std::min(i + block_size, a.Rows()); ++ii)
+                        for (size_t ii = i; ii < (std::min)(i + block_size, a.Rows()); ++ii)
 						{
-							for (size_t jj = j; jj < std::min(j + block_size, b.Cols()); ++jj)
+							for (size_t jj = j; jj < (std::min)(j + block_size, b.Cols()); ++jj)
 							{
-								for (size_t kk = k; kk < std::min(k + block_size, a.Cols()); ++kk)
+								for (size_t kk = k; kk < (std::min)(k + block_size, a.Cols()); ++kk)
 								{
 									result[ii][jj] += a[ii][kk] * b[kk][jj];
 								}
