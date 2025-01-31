@@ -87,3 +87,43 @@ RbsLib::Thread::TaskPool::~TaskPool(void)
 	}
 }
 
+void RbsLib::Thread::SpinLock::lock()
+{
+	while (this->flag.test_and_set(std::memory_order_acquire));
+}
+
+void RbsLib::Thread::SpinLock::unlock()
+{
+	this->flag.clear(std::memory_order_release);
+}
+
+RbsLib::Thread::ThreadPoolException::ThreadPoolException(const std::string& msg)
+	:message(msg)
+{
+}
+
+const char* RbsLib::Thread::ThreadPoolException::what() const noexcept
+{
+	return this->message.c_str();
+}
+
+RbsLib::Thread::ThreadPool::ThreadPool(int num) noexcept
+	:keep_task_num(num)
+{
+}
+
+RbsLib::Thread::ThreadPool::~ThreadPool(void)
+{
+	std::unique_lock<std::mutex> lock(this->task_lock);
+	this->is_cancel = true;
+	lock.unlock();
+	this->getter.notify_all();
+	for (auto it : this->threads_handle)
+	{
+		if (it->joinable())
+		{
+			it->join();
+		}
+		delete it;
+	}
+}
