@@ -127,3 +127,11 @@ RbsLib::Thread::ThreadPool::~ThreadPool(void)
 		delete it;
 	}
 }
+
+void RbsLib::Thread::ThreadPool::SetKeepThreadNum(int num)
+{
+	this->keep_task_num = num;
+}
+
+
+

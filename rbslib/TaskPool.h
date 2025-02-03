@@ -64,16 +64,18 @@ namespace RbsLib::Thread
 		std::mutex task_lock;
 		std::list<std::thread*> threads_handle;
 		std::atomic_bool is_cancel = false;
+		using TaskHandle = std::tuple<std::binary_semaphore, std::optional<std::shared_ptr<void>>, std::exception_ptr>;
+		using TaskHandlePtr = std::shared_ptr<TaskHandle>;
 	public:
 		template<typename T>
 		class TaskResult
 		{
 		private:
-            std::shared_ptr<std::tuple<std::binary_semaphore, std::optional<std::shared_ptr<void>>,std::exception_ptr>> handle;
+            TaskHandlePtr handle;
 			bool is_result_moved = false;
 		public:
 			/*要保证安全需要保证构造时句柄中的锁已经locked*/
-			TaskResult(const std::shared_ptr<std::tuple<std::binary_semaphore, std::optional<std::shared_ptr<void>>, std::exception_ptr>>& result_handle) : handle(result_handle) {}
+			TaskResult(const TaskHandlePtr& result_handle) : handle(result_handle) {}
 
 			T GetResult()
 			{
@@ -121,7 +123,7 @@ namespace RbsLib::Thread
 		template<typename Func, typename ... Arg>
 		auto Run(Func&& fn, Arg&& ... arg) -> TaskResult<std::decay_t<decltype(fn(std::forward<Arg>(arg)...))>>
 		{
-			std::shared_ptr<std::tuple<std::binary_semaphore, std::optional<std::shared_ptr<void>>, std::exception_ptr>> handle = std::make_shared<std::tuple<std::binary_semaphore, std::optional<std::shared_ptr<void>>, std::exception_ptr>>(0, std::nullopt, nullptr);
+			TaskHandlePtr handle = std::make_shared<TaskHandle>(0, std::nullopt, nullptr);
 			std::function<void()> func = [handle, func = std::bind(std::forward<Func>(fn), std::forward<Arg>(arg)...)]() mutable {
 				if constexpr (std::is_void_v<decltype(func())>)
 				{
@@ -150,7 +152,7 @@ namespace RbsLib::Thread
 				};
 			std::unique_lock<std::mutex> lock(this->task_lock);
 			this->task_list.push(std::move(func));
-			lock.unlock();
+			
 			if (this->watting_task_num > 0)
 			{
 				this->getter.notify_one();
@@ -166,8 +168,6 @@ namespace RbsLib::Thread
 				auto& max = this->keep_task_num;
 				auto& task_list = this->task_list;
 				auto& threads_list = this->threads_handle;
-
-				lock.lock();
 				std::thread* t = new std::thread([&max, &mutex, &getter, &running, &watting, &iscancel, &task_list, &threads_list]() {
 					std::unique_lock<std::mutex> lock(mutex);
 					watting += 1;
@@ -212,12 +212,13 @@ namespace RbsLib::Thread
 					});
 
 				this->threads_handle.push_back(t);
-				lock.unlock();
 			}
+			lock.unlock();
 			return TaskResult<std::decay_t<decltype(fn(std::forward<Arg>(arg)...))>>(handle);
 		}
 
 		~ThreadPool(void);
+		void SetKeepThreadNum(int num);
 
 	};
 }
