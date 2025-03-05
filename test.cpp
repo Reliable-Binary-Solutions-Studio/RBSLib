@@ -298,8 +298,7 @@ private:
 std::map<int, std::vector<std::vector<int>>> Nums;
 int main()
 {
-	try
-	{
+
 		int canvas_size = CanvasSize;
 		//读取数据集
 		RbsLib::Storage::FileIO::File f("number.bin", RbsLib::Storage::FileIO::OpenMode::Read | RbsLib::Storage::FileIO::OpenMode::Bin);
@@ -420,9 +419,5 @@ int main()
 		RbsLib::Windows::BasicUI::Window window("请输入数字", 500, 500, RbsLib::Windows::BasicUI::Color::BLACK);
 		window.AddUIElement(std::make_shared<DrawNumber>(&nn));
 		window.Show();
-	}
-	catch (const std::exception& ex)
-	{
-		std::cerr << ex.what() << std::endl;
-	}
+
 }

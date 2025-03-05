@@ -42,6 +42,7 @@ else()
     add_executable(generate "GenerateDataSets.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     add_executable(guitest "guitest.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     add_executable(flappy_bird "flappybird.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
+    add_executable(minesweeper "minesweeper.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     set_property(TARGET generate PROPERTY CXX_STANDARD 20)
 endif()
 
