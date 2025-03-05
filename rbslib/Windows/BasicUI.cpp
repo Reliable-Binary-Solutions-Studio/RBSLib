@@ -23,36 +23,55 @@ auto CALLBACK RbsLib::Windows::BasicUI::Window::WindowProc(HWND hwnd, UINT messa
 	}
 	auto self_ref = x->second;
 	RECT rc;
+	LRESULT result = -1;
 	switch (message)
 	{
 	case WM_LBUTTONDOWN:
 		self_ref->OnLeftButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam);
-		return 0;
+		result = 0;
+		break;
 	case WM_LBUTTONUP:
 		self_ref->OnLeftButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam);
-		return 0;
+		result = 0;
+		break;
+	case WM_RBUTTONDOWN:
+		self_ref->OnRightButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam);
+		result = 0;
+		break;
 	case WM_MOUSEMOVE:
 		self_ref->MouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam);
-		return 0;
+		result = 0;
+		break;
 	case WM_TIMER:
 		self_ref->OnTimer(wParam);
-		return 0;
+		result = 0;
+		break;
 	case WM_PAINT:
 		self_ref->PaintWindow();
-		return 0;
+		result = 0;
+		break;
 	case WM_SIZE:
 		self_ref->OnWindowSizeChanged();
-		return 0;
+		result = 0;
+		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
-		return 0;
+		result = 0;
+		break;
 	case WM_KEYDOWN:
 		self_ref->OnKeyDown(wParam, lParam);
-		return 0;
+		result = 0;
+		break;
 	case WM_CREATE:
 		self_ref->OnWindowCreate();
-		return 0;
-
+		result = 0;
+		break;
+	}
+	self_ref->main_thread_tasks(*self_ref);
+	self_ref->main_thread_tasks.Clear();
+	if (result != -1)
+	{
+		return result;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
 }
@@ -105,6 +124,19 @@ void RbsLib::Windows::BasicUI::Window::ReleaseD2D1Factory(void)
 bool RbsLib::Windows::BasicUI::Window::IsD2D1RenderTargetInitialized(void) const noexcept
 {
 	return this->d2d1_render_target;
+}
+
+std::uint32_t RbsLib::Windows::BasicUI::Window::GenerateUIElementID(void)
+{
+	std::uint32_t id;
+	for (id = 1; id != 0; ++id)
+	{
+		if (std::find_if(this->ui_element_list.begin(), this->ui_element_list.end(), [id](const std::shared_ptr<UIElement>& x) {return x->id == id; }) == this->ui_element_list.end())
+		{
+			break;
+		}
+	}
+	return id;
 }
 
 void RbsLib::Windows::BasicUI::Window::_OnWindowCreateHandler(Window& window)
@@ -171,6 +203,14 @@ void RbsLib::Windows::BasicUI::Window::_OnLeftButtonUpHandler(Window& window, in
 	}
 }
 
+void RbsLib::Windows::BasicUI::Window::_OnRightButtonDownHandler(Window& window, int x, int y, int key_status)
+{
+	for (auto& element : window.ui_element_list)
+	{
+		element->OnRightButtonDown(window, x, y, key_status);
+	}
+}
+
 
 void RbsLib::Windows::BasicUI::Window::OnWindowCreate(void)
 {
@@ -234,6 +274,12 @@ void RbsLib::Windows::BasicUI::Window::OnLeftButtonUp(int x, int y, int key_stat
 	this->LeftButtonUpHandler(*this, x, y, key_status);
 }
 
+void RbsLib::Windows::BasicUI::Window::OnRightButtonDown(int x, int y, int key_status)
+{
+	this->RightButtonDownHandler(*this, x, y, key_status);
+}
+
+
 void RbsLib::Windows::BasicUI::Window::ResetD2D1RenderTarget(void)
 {
 	this->ReleaseD2D1RenderTarget();
@@ -256,10 +302,51 @@ HWND RbsLib::Windows::BasicUI::Window::GetHWND(void)
 	return this->hwnd;
 }
 
-
-void RbsLib::Windows::BasicUI::Window::AddUIElement(std::shared_ptr<UIElement> ui_element)
+void RbsLib::Windows::BasicUI::Window::AddMainThreadTask(const std::function<void(Window&)>& task)
 {
+	this->main_thread_tasks += task;
+}
+
+
+std::uint32_t RbsLib::Windows::BasicUI::Window::AddUIElement(std::shared_ptr<UIElement> ui_element)
+{
+	if (ui_element->id != 0)
+	{
+		throw BasicUIException("UIElement already in window");
+	}
+	ui_element->id = this->GenerateUIElementID();
+	if (ui_element->id == 0)
+	{
+		throw BasicUIException("UIElement id overflow");
+	}
+	ui_element->window = this;
 	this->ui_element_list.push_back(ui_element);
+	ui_element->OnUIElementAdd(*this);
+	return ui_element->id;
+}
+
+std::shared_ptr<RbsLib::Windows::BasicUI::UIElement> RbsLib::Windows::BasicUI::Window::GetUIElement(std::uint32_t id)
+{
+	auto x = std::find_if(this->ui_element_list.begin(), this->ui_element_list.end(), [id](const std::shared_ptr<UIElement>& x) {return x->id == id; });
+	if (x == this->ui_element_list.end())
+	{
+		throw BasicUIException("UIElement not found");
+	}
+	return *x;
+}
+
+void RbsLib::Windows::BasicUI::Window::RemoveUIElement(std::uint32_t id)
+{
+	auto x = std::find_if(this->ui_element_list.begin(), this->ui_element_list.end(), [id](const std::shared_ptr<UIElement>& x) {return x->id == id; });
+	if (x == this->ui_element_list.end())
+	{
+		throw BasicUIException("UIElement not found");
+	}
+	(*x)->OnUIElementRemove(*this);
+	auto t = *x;
+	this->ui_element_list.erase(x);
+	t->id = 0;
+	t->window = nullptr;
 }
 
 void RbsLib::Windows::BasicUI::Window::Draw(void)
@@ -285,7 +372,7 @@ RECT RbsLib::Windows::BasicUI::Window::GetRect(void) const
 	return rc;
 }
 
-RbsLib::Windows::BasicUI::Window::Window(const std::string& window_name, int width, int heigth, Color color)
+RbsLib::Windows::BasicUI::Window::Window(const std::string& window_name, int width, int heigth, Color color,std::uint64_t style)
 	:window_name(window_name)
 {
 	std::string class_name = window_name + "RBSBasicUI";
@@ -308,7 +395,7 @@ RbsLib::Windows::BasicUI::Window::Window(const std::string& window_name, int wid
 	this->CreateD2D1Factory();
 	this->hwnd = CreateWindow(class_name.c_str(),
 		window_name.c_str(),
-		WS_OVERLAPPEDWINDOW,
+		style,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
 		width, heigth,
@@ -327,6 +414,7 @@ RbsLib::Windows::BasicUI::Window::Window(const std::string& window_name, int wid
 	this->OnLeftButtonDownHandler += this->_OnLeftButtonDownHandler;
 	this->LeftButtonUpHandler += this->_OnLeftButtonUpHandler;
 	this->OnKeyDownHandler += this->_OnKeyDownHandler;
+	this->RightButtonDownHandler += this->_OnRightButtonDownHandler;
 
 	RunningWindowsList.insert({ this->hwnd,this });
 	this->CreateD2D1RenderTarget();
@@ -415,6 +503,14 @@ RbsLib::Windows::BasicUI::BasicUIException::BasicUIException(const std::string& 
 {
 }
 
+void RbsLib::Windows::BasicUI::UIElement::OnUIElementAdd(Window& window)
+{
+}
+
+void RbsLib::Windows::BasicUI::UIElement::OnUIElementRemove(Window& window)
+{
+}
+
 void RbsLib::Windows::BasicUI::UIElement::Draw(Window& window)
 {
 }
@@ -436,6 +532,10 @@ void RbsLib::Windows::BasicUI::UIElement::OnLeftButtonDown(Window& window, int x
 }
 
 void RbsLib::Windows::BasicUI::UIElement::OnLeftButtonUp(Window& window, int x, int y, int key_status)
+{
+}
+
+void RbsLib::Windows::BasicUI::UIElement::OnRightButtonDown(Window& window, int x, int y, int key_status)
 {
 }
 
@@ -530,6 +630,9 @@ void RbsLib::Windows::BasicUI::Button::Draw(Window& window)
 void RbsLib::Windows::BasicUI::Button::Text(const std::wstring& text)
 {
 	this->text = text;
+	//立即无效化窗口区域
+	if (this->window != nullptr)
+		InvalidateRect(this->window->GetHWND(), nullptr, FALSE);
 }
 
 const std::wstring& RbsLib::Windows::BasicUI::Button::Text(void) const
@@ -546,7 +649,23 @@ void RbsLib::Windows::BasicUI::Button::Size(const BoxSize& box_size)
 {
 }
 
-void RbsLib::Windows::BasicUI::Button::OnWindowCreate(Window& window)
+void RbsLib::Windows::BasicUI::Button::ButtonColor(const D2D1::ColorF& color)
+{
+	this->button_color = color;
+	if (this->background_brush != nullptr)
+	{
+		this->background_brush->Release();
+		this->background_brush = nullptr;
+	}
+	this->window->d2d1_render_target->CreateSolidColorBrush(this->button_color, &this->background_brush);
+}
+
+D2D1::ColorF RbsLib::Windows::BasicUI::Button::ButtonColor(void) const
+{
+	return this->button_color;
+}
+
+void RbsLib::Windows::BasicUI::Button::OnUIElementAdd(Window& window)
 {
 	if (this->background_brush != nullptr)
 	{
@@ -668,6 +787,15 @@ void RbsLib::Windows::BasicUI::Button::OnLeftButtonUp(Window& window, int x, int
 
 }
 
+void RbsLib::Windows::BasicUI::Button::OnRightButtonDown(Window& window, int x, int y, int key_status)
+{
+	if (x >= this->point.x && x <= this->point.x + this->box_size.width && y >= this->point.y && y <= this->point.y + this->box_size.height)
+	{
+		EventArgs e{ window,*this };
+		this->events.OnRightButtonDown(e);
+	}
+}
+
 RbsLib::Windows::BasicUI::UIRoot::UIRoot(const D2D1::ColorF& color)
 	:color(color)
 {
@@ -697,4 +825,151 @@ void RbsLib::Windows::BasicUI::UIRoot::Draw(Window& window)
 {
 	auto rect = window.GetD2D1RenderTargetRect();
 	window.d2d1_render_target->FillRectangle(D2D1::RectF(0, 0, rect.right - rect.left, rect.bottom - rect.top), this->brush);
+}
+
+void RbsLib::Windows::BasicUI::Label::CreateTextFormat(ID2D1Factory* factory, const wchar_t* font_family, const wchar_t* font_name, int width, int height, float font_size)
+{
+	HRESULT hr = DWriteCreateFactory(
+		DWRITE_FACTORY_TYPE_SHARED,
+		__uuidof(IDWriteFactory),
+		reinterpret_cast<IUnknown**>(&this->dwrite_factory)
+	);
+	if (!SUCCEEDED(hr))
+	{
+		this->dwrite_factory = nullptr;
+		throw BasicUIException("Create dwrite factory failed");
+	}
+	hr = dwrite_factory->CreateTextFormat(
+		font_family,
+		NULL,
+		DWRITE_FONT_WEIGHT_NORMAL,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		font_size,
+		L"",
+		&this->text_format
+	);
+	if (!SUCCEEDED(hr))
+	{
+		this->text_format = nullptr;
+		throw BasicUIException("Create text format failed");
+	}
+	this->text_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+	this->text_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+}
+
+void RbsLib::Windows::BasicUI::Label::OnUIElementAdd(Window& window)
+{
+	if (this->text_brush != nullptr)
+	{
+		this->text_brush->Release();
+		this->text_brush = nullptr;
+	}
+	window.d2d1_render_target->CreateSolidColorBrush(this->text_color, &this->text_brush);
+	if (this->text_format != nullptr)
+	{
+		this->text_format->Release();
+		this->text_format = nullptr;
+	}
+	this->CreateTextFormat(window.d2d1_factory, L"宋体", L"宋体", this->box_size.width, this->box_size.height, 20);
+}
+
+void RbsLib::Windows::BasicUI::Label::OnUIElementRemove(Window& window)
+{
+	if (this->text_brush != nullptr)
+	{
+		this->text_brush->Release();
+		this->text_brush = nullptr;
+	}
+	if (this->text_format != nullptr)
+	{
+		this->text_format->Release();
+		this->text_format = nullptr;
+	}
+}
+
+RbsLib::Windows::BasicUI::Label::Label(const Point& point, const BoxSize& box_size, const std::wstring& text, const D2D1::ColorF& text_color)
+	:text_color(text_color), text(text), box_size(box_size), point(point), text_brush(nullptr), text_format(nullptr), dwrite_factory(nullptr)
+{
+}
+
+RbsLib::Windows::BasicUI::Label::~Label()
+{
+	if (this->text_brush != nullptr)
+	{
+		this->text_brush->Release();
+	}
+	if (this->text_format != nullptr)
+	{
+		this->text_format->Release();
+	}
+	if (this->dwrite_factory != nullptr)
+	{
+		this->dwrite_factory->Release();
+	}
+}
+
+void RbsLib::Windows::BasicUI::Label::Draw(Window& window)
+{
+	if (this->text_brush != nullptr && this->text_format != nullptr)
+	{
+		window.d2d1_render_target->DrawText(this->text.c_str(), this->text.length(), this->text_format, D2D1::RectF(this->point.x, this->point.y, this->point.x + this->box_size.width, this->point.y + this->box_size.height), this->text_brush);
+	}
+
+}
+
+void RbsLib::Windows::BasicUI::Label::Text(const std::wstring& text)
+{
+	this->text = text;
+	if (this->window)
+	{
+		InvalidateRect(this->window->GetHWND(), nullptr, FALSE);
+	}
+}
+
+const std::wstring& RbsLib::Windows::BasicUI::Label::Text(void) const
+{
+	return this->text;
+}
+
+void RbsLib::Windows::BasicUI::Label::Move(const Point& point)
+{
+	this->point = point;
+	if (this->window)
+	{
+		InvalidateRect(this->window->GetHWND(), nullptr, FALSE);
+	}
+}
+
+void RbsLib::Windows::BasicUI::Label::Size(const BoxSize& box_size)
+{
+	this->box_size = box_size;
+	if (this->window)
+	{
+		InvalidateRect(this->window->GetHWND(), nullptr, FALSE);
+	}
+}
+
+void RbsLib::Windows::BasicUI::Label::TextColor(const D2D1::ColorF& color)
+{
+	this->text_color = color;
+	if (this->text_brush != nullptr)
+	{
+		this->text_brush->Release();
+		this->text_brush = nullptr;
+	}
+	if (this->window)
+	{
+		this->window->d2d1_render_target->CreateSolidColorBrush(this->text_color, &this->text_brush);
+	}
+}
+
+D2D1::ColorF RbsLib::Windows::BasicUI::Label::TextColor(void) const
+{
+	return this->text_color;
+}
+
+const RbsLib::Windows::BasicUI::BoxSize& RbsLib::Windows::BasicUI::Label::Size(void) const
+{
+	return this->box_size;
 }
