@@ -17,6 +17,7 @@ namespace RbsLib::MatchingLearning
 	public:
 		NeuralNetworks(std::vector<int> layers, std::vector<std::function<float(float)>> activation, std::vector<std::function<float(float)>> activation_derivative, int random_seed);//参数表示每层神经元的个数
 		void Train(RbsLib::Math::Matrix<float> inputs, RbsLib::Math::Matrix<float> target, float learning_rate, int epochs, std::function<void(int, float)> loss_callback);
+		void TrainMultiThread(RbsLib::Math::Matrix<float> inputs, RbsLib::Math::Matrix<float> target, float learning_rate, int epochs, std::function<void(int, float)> loss_callback);
 		void TrainCUDA(RbsLib::Math::Matrix<float> inputs, RbsLib::Math::Matrix<float> target, float learning_rate, int epochs, std::function<void(int, float)> loss_callback, int activite_func_index);
 		auto Predict(RbsLib::Math::Matrix<float> inputs) -> RbsLib::Math::Matrix<float>;
 		void Save(const RbsLib::Storage::StorageFile& path);//将模型存储到文件，但不会保存神经网络结构和激活函数等信息

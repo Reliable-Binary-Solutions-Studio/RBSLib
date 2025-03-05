@@ -2,6 +2,7 @@
 #include <cmath>
 #include "FileIO.h"
 #include <random>
+#include "TaskPool.h"
 
 #ifdef ENABLE_CUDA
 #include "./CUDA/MatchingLearning.cuh"
@@ -154,6 +155,94 @@ void RbsLib::MatchingLearning::NeuralNetworks::Train(
 
                 // 偏置更新： b[l] = b[l] - learning_rate * δ[l]
 				layers[l].b = layers[l].b - learning_rate * layers[l].delta;
+            }
+        }
+        // 输出每轮的损失
+        loss_callback(e, total_loss / inputs.Rows());
+    }
+}
+
+void RbsLib::MatchingLearning::NeuralNetworks::TrainMultiThread(RbsLib::Math::Matrix<float> inputs, RbsLib::Math::Matrix<float> target, float learning_rate, int epochs, std::function<void(int, float)> loss_callback)
+{
+    //先检查输入输出是否匹配
+    if (inputs.Rows() != target.Rows())
+    {
+        throw std::invalid_argument("输入输出数据行数不匹配");
+    }
+    if (inputs.Cols() != layers[0].w.Rows())
+    {
+        throw std::invalid_argument("输入数据列数与输入层神经元个数不匹配");
+    }
+    if (target.Cols() != layers.back().w.Rows())
+    {
+        throw std::invalid_argument("输出数据列数与输出层神经元个数不匹配");
+    }
+    //创建线程池
+	RbsLib::Thread::ThreadPool pool(std::thread::hardware_concurrency()-1);
+    // 开始训练
+    for (int e = 0; e < epochs; ++e)
+    {
+        // 第 e 轮
+        float total_loss = 0.0;  // 用来累计损失
+        for (int i = 0; i < inputs.Rows(); ++i)
+        {
+            int index = i; rand() % inputs.Rows();  // 随机选择一个样本
+
+            // 前向传播
+            // 第 1 层的输出就是输入
+            for (int j = 0; j < layers[0].output.Rows(); ++j)
+            {
+                layers[0].output[j][0] = inputs[index][j];
+            }
+
+            // 从第二层开始
+            for (int j = 1; j < layers.size(); ++j)
+            {
+                // 计算当前层的输出 Z = W * A + b
+                layers[j].z = RbsLib::Math::AddMultiThread(RbsLib::Math::MultiplyMultiThread(layers[j].w , layers[j - 1].output,pool) , layers[j].b,pool);  // 计算Z[l]
+
+                // 应用激活函数
+                for (int k = 0; k < layers[j].output.Rows(); ++k)
+                {
+                    layers[j].output[k][0] = layers[j].activation(layers[j].z[k][0]);  // 使用激活函数计算输出
+                }
+				layers[j].output = layers[j].z.ApplyMultiThread(layers[j].activation, pool,true);
+            }
+
+            // 计算损失（均方误差）
+            float loss = 0.0;
+            for (int j = 0; j < layers.back().output.Rows(); ++j)
+            {
+                float error = target[index][j] - layers.back().output[j][0]; // 预测误差
+                loss += 0.5 * error * error; // MSE损失
+            }
+            total_loss += loss;
+
+
+            // 反向传播
+            // 计算输出层的误差项 δ[L] = (A[L] - Y) .* f'(Z[L])
+            
+            for (int j = 0; j < layers.back().output.Rows(); ++j)
+            {
+                float error = layers.back().output[j][0] - target[index][j];
+                layers.back().delta[j][0] = error * layers.back().activation_derivative(layers.back().z[j][0]);  // 使用激活函数导数
+            }
+
+            // 计算隐藏层的误差项 δ[L-1], δ[L-2], ..., δ[1]
+            // δ[L] = W[L+1]^T * δ[L+1] .* f'(Z[L])
+            for (int l = layers.size() - 2; l >= 1; --l)
+            {
+				layers[l].delta = RbsLib::Math::MultiplyMultiThread(layers[l + 1].w.T(), layers[l + 1].delta, pool).HadamardProductMultiThread(layers[l].z.ApplyMultiThread(layers[l].activation_derivative, pool, true), pool);
+            }
+            // 更新权重和偏置
+            for (int l = 1; l < layers.size(); ++l)
+            {
+                // 权重更新： W[l] = W[l] - learning_rate * (δ[l] * A[l-1]^T)
+                layers[l].w = RbsLib::Math::SubMultiThread(layers[l].w, RbsLib::Math::MultiplyMultiThread(learning_rate, RbsLib::Math::MultiplyMultiThread(layers[l].delta, layers[l - 1].output.T(), pool), pool), pool);
+
+
+                // 偏置更新： b[l] = b[l] - learning_rate * δ[l]
+				layers[l].b = RbsLib::Math::SubMultiThread(layers[l].b, RbsLib::Math::MultiplyMultiThread(learning_rate, layers[l].delta, pool), pool);
             }
         }
         // 输出每轮的损失
