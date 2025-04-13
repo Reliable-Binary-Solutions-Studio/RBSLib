@@ -54,7 +54,8 @@ const RbsLib::Storage::FileIO::File& RbsLib::Storage::FileIO::File::operator=(co
 	if (this->fp = file.fp)
 	{
 		this->quote = file.quote;
-		--*this->quote;
+		++*this->quote;
+		this->open_mode = file.open_mode;
 	}
 	else
 	{
@@ -202,15 +203,18 @@ void RbsLib::Storage::FileIO::File::WriteLine(const std::string& str) const
 
 int RbsLib::Storage::FileIO::File::Seek(SeekBase base, int64_t offset) const
 {
+#ifdef WIN32
+	auto fseek = _fseeki64;
+#endif
 	this->ThrowIfNotOpen();
 	switch (base)
 	{
 	case RbsLib::Storage::FileIO::SeekBase::begin:
-		return fseek(this->fp, SEEK_SET, offset);
+		return fseek(this->fp, offset, SEEK_SET);
 	case RbsLib::Storage::FileIO::SeekBase::end:
-		return fseek(this->fp, SEEK_END, offset);
+		return fseek(this->fp, offset, SEEK_END);
 	case RbsLib::Storage::FileIO::SeekBase::now:
-		return fseek(this->fp, SEEK_CUR, offset);
+		return fseek(this->fp, offset, SEEK_CUR);
 	}
 	throw fio::FileIOException("Unknown seek base");
 	return -1;

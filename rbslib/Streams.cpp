@@ -161,12 +161,12 @@ const RbsLib::Buffer& RbsLib::Streams::FileInputStream::Read(Buffer& buffer, int
 {
 	if (size)
 	{
-		auto data = this->file.Read(buffer.GetSize());
+		auto data = this->file.Read(size);
 		buffer.SetData(data.Data(), data.GetLength());
 	}
 	else
 	{
-		auto data = this->file.Read(size);
+		auto data = this->file.Read(buffer.GetSize());
 		buffer.SetData(data.Data(), data.GetLength());
 	}
 	return buffer;

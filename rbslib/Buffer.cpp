@@ -24,8 +24,6 @@ RbsLib::Buffer::Buffer(const void* data, uint64_t data_size)
 	:Buffer(data_size)
 {
 	if (data_size == 0) return;
-	this->data_ptr = new char[data_size];
-	this->size = data_size;
 	this->length = data_size;
 	memcpy(this->data_ptr, data, data_size);
 }
@@ -134,6 +132,20 @@ std::string RbsLib::Buffer::ToString(void) const noexcept
 	return std::string((const char*)this->Data(), this->GetLength());
 }
 
+std::string RbsLib::Buffer::ToHexString(void) const noexcept
+{
+	if (this->GetSize() == 0) return std::string();
+	std::string hex_str;
+	hex_str.reserve(this->GetLength() * 2);
+	for (uint64_t i = 0; i < this->GetLength(); ++i)
+	{
+		char hex[10];
+		snprintf(hex, 3,"%02X", ((const char*)this->Data())[i]);
+		hex_str.append(hex);
+	}
+	return hex_str;
+}
+
 void RbsLib::Buffer::SetData(const void* data, uint64_t data_size)
 {
 	if (data_size > this->size) throw BufferException("data_size > buffer_size");
@@ -189,7 +201,7 @@ void RbsLib::Buffer::PushBack(char ch)
 	}
 }
 
-void RbsLib::Buffer::AppendToEnd(const IBuffer& buffer)
+RbsLib::Buffer& RbsLib::Buffer::AppendToEnd(const IBuffer& buffer)
 {
 	std::uint64_t buffer_len = buffer.GetLength();
 	if (this->length + buffer.GetLength() > this->size)
@@ -201,9 +213,13 @@ void RbsLib::Buffer::AppendToEnd(const IBuffer& buffer)
 			((char*)this->data_ptr)[this->length++] = ((const char*)buffer.Data())[i];
 		}
 	}
-	for (int i = 0; i < buffer_len; ++i)
+	else
 	{
-		((char*)this->data_ptr)[this->length++] = ((const char*)buffer.Data())[i];
+		for (int i = 0; i < buffer_len; ++i)
+		{
+			((char*)this->data_ptr)[this->length++] = ((const char*)buffer.Data())[i];
+		}
 	}
+	return *this;
 }
 

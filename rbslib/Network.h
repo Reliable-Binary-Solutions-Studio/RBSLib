@@ -75,6 +75,7 @@ namespace RbsLib
 				std::string GetAddress(void)const noexcept;
 				void Close(void);
 				void SetSocketOption(int level, int optname, const void* optval, socklen_t optlen);
+				SOCKET GetRowSocket(void) const noexcept;//获取原始socket，但并不会取消对对象的引用计数
 			};
 			class TCPServer
 			{
@@ -136,6 +137,8 @@ namespace RbsLib
 				auto GetHeader(const std::string& key) const->std::string;
 				auto operator[](const std::string& key) const ->std::string ;
 				auto Headers(void)const -> const std::map<std::string, std::string>& ;
+				bool ExistHeader(const std::string& key) const noexcept;
+				auto GetHeaderMap(void) const noexcept -> const std::map<std::string, std::string>&;
 			};
 			class RequestHeader
 			{

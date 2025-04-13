@@ -375,7 +375,7 @@ int main()
 			layers, activation_functions, activation_functions_derivative,
 			5);
 		std::vector<double> losss;
-		nn.Train(X, Y, learning_rate, epochs, [&losss](int e, float loss) {
+		nn.TrainCUDA(X, Y, learning_rate, epochs, [&losss](int e, float loss) {
 			static int x = 0;
 			if (x > 10)
 			{
@@ -384,7 +384,7 @@ int main()
 				losss.push_back(loss);
 			}
 			x++;
-			});
+			},1);
 		RbsLib::Windows::Graph::Plot plot;
 		std::vector<double> x_axis(losss.size());
 		std::iota(x_axis.begin(), x_axis.end(), 0);

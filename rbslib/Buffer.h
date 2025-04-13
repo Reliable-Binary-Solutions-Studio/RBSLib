@@ -46,6 +46,7 @@ namespace RbsLib
 		uint64_t GetSize(void)const noexcept override;
 		uint64_t GetLength(void)const noexcept override;
 		std::string ToString(void)const noexcept;
+		std::string ToHexString(void)const noexcept;
 		template <typename T> T GetData(void)const
 		{
 			if (sizeof(T) > this->length)
@@ -56,7 +57,7 @@ namespace RbsLib
 		void SetLength(uint64_t len);
 		void Resize(uint64_t buffer_size);
 		void PushBack(char ch);
-		void AppendToEnd(const IBuffer& buffer);
+		RbsLib::Buffer& AppendToEnd(const IBuffer& buffer);
 		template <typename T> std::vector<T> AsArray(void)
 		{
 			return std::vector<T>(this->data_ptr, (char*)this->data_ptr + this->length);

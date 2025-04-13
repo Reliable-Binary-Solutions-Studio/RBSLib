@@ -548,7 +548,7 @@ void RbsLib::Windows::BasicUI::UIElement::OnWindowCreate(Window& window)
 }
 
 
-#endif
+
 
 double RbsLib::Windows::BasicUI::GetDistance(const Point& a, const Point& b)
 {
@@ -973,3 +973,4 @@ const RbsLib::Windows::BasicUI::BoxSize& RbsLib::Windows::BasicUI::Label::Size(v
 {
 	return this->box_size;
 }
+#endif

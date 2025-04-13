@@ -7,6 +7,7 @@
 #include <future>
 #include <memory>
 #include <algorithm>
+#include <cstring>
 #include "ArrayView.h"
 #include "TaskPool.h"
 

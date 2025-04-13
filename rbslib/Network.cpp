@@ -337,6 +337,11 @@ void RbsLib::Network::TCP::TCPConnection::SetSocketOption(int level, int optname
 	}
 }
 
+SOCKET RbsLib::Network::TCP::TCPConnection::GetRowSocket(void) const noexcept
+{
+	return this->sock;
+}
+
 RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std::string ip, int port)
 {
 	net::init_network();
@@ -633,12 +638,12 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 	
 }
 
-void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func)
+void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<void(const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header, RbsLib::Buffer& post_content)>& func)
 {
 	this->on_post_request = func;
 }
 
-void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
+void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<void(const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header)>& func)
 {
 	this->on_get_request = func;
 }
@@ -683,6 +688,17 @@ auto RbsLib::Network::HTTP::HTTPHeadersContent::operator[](const std::string& ke
 }
 
 auto RbsLib::Network::HTTP::HTTPHeadersContent::Headers(void)const -> const std::map<std::string, std::string>&
+{
+	return this->headers;
+}
+
+bool RbsLib::Network::HTTP::HTTPHeadersContent::ExistHeader(const std::string& key) const noexcept
+{
+	if (this->headers.find(key) == this->headers.end()) return false;
+	else return true;
+}
+
+auto RbsLib::Network::HTTP::HTTPHeadersContent::GetHeaderMap(void) const noexcept -> const std::map<std::string, std::string>&
 {
 	return this->headers;
 }
