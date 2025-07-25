@@ -174,14 +174,25 @@ namespace RbsLib
 			private:
 				TCP::TCPServer server;
 				std::string protocol_version = "HTTP/1.1";
-				std::function<void(const TCP::TCPConnection& connection,RequestHeader&header)> on_get_request;
-				std::function<void(const TCP::TCPConnection& connection, RequestHeader& header,Buffer&post_content)> on_post_request;
+				std::function<int(const TCP::TCPConnection& connection,RequestHeader&header)> on_get_request;
+				std::function<int(const TCP::TCPConnection& connection, RequestHeader& header,Buffer&post_content)> on_post_request;
 			public:
 				HTTPServer(const std::string& host = "0.0.0.0", int port = 80);
 				HTTPServer(int port);
+				/*
+				* 开始循环等待连接
+				*/
 				void LoopWait(bool use_thread_pool = false, int keep_threads_number = 0);
-				void SetPostHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func);
-				void SetGetHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header)>& func);
+				/*
+				* 添加GET请求处理函数
+				* 如果返回值不为0，则表示不再keep-alive
+				*/
+				void SetPostHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func);
+				/*
+				* 添加POST请求处理函数
+				* 如果返回值不为0，则表示不再keep-alive
+				*/
+				void SetGetHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func);
 			};
 		}
 		namespace UDP

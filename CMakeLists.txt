@@ -45,6 +45,7 @@ else()
     add_executable(minesweeper "minesweeper.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     add_executable(network_test "network_test.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     add_executable(http_test "http_test.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
+    add_executable(circumscribed_rectangle "circumscribed_rectangle.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS})
     set_property(TARGET generate PROPERTY CXX_STANDARD 20)
 endif()
 
